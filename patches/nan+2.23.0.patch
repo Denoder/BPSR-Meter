@@ -1,0 +1,22 @@
+diff --git a/node_modules/nan/nan_maybe_43_inl.h b/node_modules/nan/nan_maybe_43_inl.h
+index f37ce97..6e55580 100644
+--- a/node_modules/nan/nan_maybe_43_inl.h
++++ b/node_modules/nan/nan_maybe_43_inl.h
+@@ -205,9 +205,17 @@ MaybeLocal<v8::Array> GetOwnPropertyNames(v8::Local<v8::Object> obj) {
+ inline Maybe<bool> SetPrototype(
+     v8::Local<v8::Object> obj
+   , v8::Local<v8::Value> prototype) {
++#if V8_MAJOR_VERSION >= 14
++  // V8 14.3+ removed SetPrototype, use SetPrototypeV2
++  v8::Isolate *isolate = v8::Isolate::GetCurrent();
++  v8::HandleScope scope(isolate);
++  v8::Maybe<bool> result = obj->SetPrototypeV2(isolate->GetCurrentContext(), prototype);
++  return result.IsNothing() ? Nothing<bool>() : Just(result.FromJust());
++#else
+   v8::Isolate *isolate = v8::Isolate::GetCurrent();
+   v8::HandleScope scope(isolate);
+   return obj->SetPrototype(isolate->GetCurrentContext(), prototype);
++#endif
+ }
+ 
+ inline MaybeLocal<v8::String> ObjectProtoToString(

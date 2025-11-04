@@ -1,0 +1,36 @@
+# Dependencies
+/node_modules
+/cap
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+/logs
+/logs_dps.json
+dist/logs/
+information_log.txt
+
+# Build output
+/dist
+/out
+settings.json
+player_registry.json
+
+# Vite cache
+.vite/
+.vite-inspect/
+
+# TypeScript
+*.tsbuildinfo
+*.js.map
+*.d.ts.map
+
+# Misc
+.npmrc
+/Prerequisites/npcap-1.83.exe
+pnpm-lock.yaml
+
+# Electron packaged output
+dist_electron/
