@@ -361,7 +361,6 @@ function setupIpcHandlers() {
             Object.assign(currentSettings, settings);
             await fs.promises.writeFile(settingsPath, JSON.stringify(currentSettings, null, 4));
 
-            // Broadcast transparency changes to all windows
             if (settings.hasOwnProperty("disableTransparency")) {
                 Object.values(windows).forEach((window) => {
                     if (window && !window.isDestroyed()) {
@@ -370,7 +369,6 @@ function setupIpcHandlers() {
                 });
             }
 
-            // Broadcast heightStep changes to main window
             if (settings.hasOwnProperty("heightStep")) {
                 if (windows.main && !windows.main.isDestroyed()) {
                     windows.main.webContents.send("height-step-changed", settings.heightStep);
@@ -386,19 +384,16 @@ function setupIpcHandlers() {
             const logsDir = path.join(userDataPath, "logs");
             const logPath = path.join(logsDir, logId);
 
-            // Security check: ensure the path is within the logs directory
             if (!logPath.startsWith(logsDir)) {
                 return { success: false, error: "Invalid log path" };
             }
 
-            // Check if directory exists
             try {
                 await fs.promises.access(logPath);
             } catch {
                 return { success: false, error: "Log not found" };
             }
 
-            // Delete the directory recursively
             await fs.promises.rm(logPath, { recursive: true, force: true });
             logToFile(`Deleted history log: ${logId}`);
 

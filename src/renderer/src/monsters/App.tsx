@@ -5,6 +5,7 @@ import { useTranslations } from "../shared/hooks/useTranslations";
 import { useWindowControls, useSocket } from "../shared/hooks";
 import MonstersHeader from "./MonstersHeader";
 import SortDropdown from "./SortDropdown";
+import { TRACKED_MONSTER_IDS } from "../shared/constants";
 
 interface MonsterEntry {
     name?: string | null;
@@ -12,15 +13,18 @@ interface MonsterEntry {
     max_hp?: number | null;
     monster_id?: number | null;
     last_seen?: number | null;
+    position?: { x: number; y: number; z: number } | null;
+    distance?: number | null;
 }
 
 export default function MonstersApp(): React.JSX.Element {
     const [monsters, setMonsters] = useState<Record<string, MonsterEntry>>({});
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [sortKey, setSortKey] = useState<"id" | "name" | "hp">("hp");
-    const [sortDesc, setSortDesc] = useState<boolean>(true);
+    const [sortKey, setSortKey] = useState<"id" | "name" | "hp" | "distance">("distance");
+    const [sortDesc, setSortDesc] = useState<boolean>(false);
     const [zhNames, setZhNames] = useState<Record<number, string>>({});
+    const [bossOnlyMode, setBossOnlyMode] = useState<boolean>(false);
 
     const { scale, zoomIn, zoomOut, handleDragStart, handleClose, isDragging } = useWindowControls({
         baseWidth: 560,
@@ -149,7 +153,25 @@ export default function MonstersApp(): React.JSX.Element {
             ) : (
                 <div className="monsters-container">
                     <div className="flex justify-between items-center mb-2 gap-2">
-                        <div className="text-sm font-semibold">Monsters ({Object.keys(monsters).length})</div>
+                        <div className="flex items-center gap-2">
+                            <div className="text-sm font-semibold">
+                                Monsters ({
+                                    bossOnlyMode 
+                                        ? Object.values(monsters).filter(m => m.monster_id && TRACKED_MONSTER_IDS.has(String(m.monster_id))).length
+                                        : Object.keys(monsters).length
+                                })
+                            </div>
+                            <button 
+                                onClick={() => setBossOnlyMode((prev) => !prev)}
+                                className="text-xs px-2 py-1 rounded"
+                                style={{ 
+                                    background: bossOnlyMode ? "#3498db" : "rgba(255,255,255,0.1)",
+                                    color: bossOnlyMode ? "#fff" : "rgba(255,255,255,0.7)"
+                                }}
+                            >
+                                {bossOnlyMode ? "Bosses Only" : "All Monsters"}
+                            </button>
+                        </div>
                         <div className="flex items-center gap-2">
                             <label className="text-xs">Sort:</label>
                             <div className="min-w-[140px]">
@@ -162,16 +184,20 @@ export default function MonstersApp(): React.JSX.Element {
                     <table className="monsters-table w-full border-collapse">
                         <thead>
                             <tr>
-                                <th className="text-left p-1">ID</th>
                                 <th className="text-left p-1">Name</th>
                                 <th className="text-right p-1">HP</th>
                                 <th className="text-right p-1">Max HP</th>
                                 <th className="text-right p-1">HP %</th>
+                                <th className="text-right p-1 pl-5">Distance</th>
                             </tr>
                         </thead>
                         <tbody>
                             {Object.entries(monsters)
                                 .map(([id, m]) => ({ id, ...m }))
+                                .filter((m) => {
+                                    if (!bossOnlyMode) return true;
+                                    return m.monster_id && TRACKED_MONSTER_IDS.has(String(m.monster_id));
+                                })
                                 .sort((a, b) => {
                                     if (sortKey === "hp") {
                                         const ah = a.hp ?? -Infinity;
@@ -183,17 +209,21 @@ export default function MonstersApp(): React.JSX.Element {
                                         const bn = (b.name || "").toString();
                                         return sortDesc ? bn.localeCompare(an) : an.localeCompare(bn);
                                     }
-                                    // id
-                                    const ai = Number(a.id);
-                                    const bi = Number(b.id);
-                                    return sortDesc ? bi - ai : ai - bi;
+                                    if (sortKey === "distance") {
+                                        const ad = a.distance ?? Infinity;
+                                        const bd = b.distance ?? Infinity;
+                                        return sortDesc ? bd - ad : ad - bd;
+                                    }
+                                    return 0;
                                 })
                                 .map((m) => {
-                                    const displayName = `${t(`monsters.${m.monster_id}`, m?.name ?? "Unknown")} (${m.monster_id})`;
+                                    const displayName = `${t(`monsters.${m.monster_id}`, m?.name ?? "Unknown")}`;
                                     const pct = m.max_hp && m.hp ? Math.max(0, Math.min(1, (m.hp / m.max_hp))) : null;
+                                    const distanceText = m.distance !== null && m.distance !== undefined
+                                        ? `${m.distance.toFixed(1)}m`
+                                        : "-";
                                     return (
                                         <tr key={m.id} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                                            <td className="p-2">{m.id}</td>
                                             <td className="p-2">{displayName}</td>
                                             <td className="p-2 text-right">{m?.hp ?? "-"}</td>
                                             <td className="p-2 text-right">{m?.max_hp ?? "-"}</td>
@@ -209,6 +239,7 @@ export default function MonstersApp(): React.JSX.Element {
                                                     </div>
                                                 )}
                                             </td>
+                                            <td className="p-2 text-right text-xs font-mono">{distanceText}</td>
                                         </tr>
                                     );
                                 })}

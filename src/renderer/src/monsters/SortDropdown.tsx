@@ -8,7 +8,7 @@ interface Option {
 const OPTIONS: Option[] = [
     { value: "hp", label: "HP" },
     { value: "name", label: "Name" },
-    { value: "id", label: "ID" },
+    { value: "distance", label: "Distance" },
 ];
 
 export function SortDropdown({ value, onChange }: { value: string; onChange: (v: string) => void; }): React.JSX.Element {

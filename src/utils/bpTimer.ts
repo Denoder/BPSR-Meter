@@ -1,4 +1,5 @@
 import type { Logger } from 'winston';
+import { GlobalSettings } from '../types';
 
 // @ts-ignore
 const DB_URL = import.meta.env.VITE_BPTIMER_DB_URL;
@@ -50,13 +51,15 @@ class BPTimer {
     #reportedThresholds: Map<string, Map<number, Set<number>>>;
     #pendingRequests: Map<string, Set<string>>;
     #logger: Logger;
+    globalSettings: GlobalSettings;
 
-    constructor(apiKey: string, dbURL: string, logger: Logger) {
+    constructor(apiKey: string, dbURL: string, logger: Logger, globalSettings?: GlobalSettings) {
         this.#dbURL = dbURL;
         this.#apiKey = apiKey;
         this.#reportedThresholds = new Map();
         this.#pendingRequests = new Map();
         this.#logger = logger;
+        this.globalSettings = globalSettings;
     }
 
     /**
@@ -81,6 +84,14 @@ class BPTimer {
      */
     async createHpReport(monsterId: string | number, hpPct: number, line: number): Promise<HpReportResponse> {
         try {
+
+            if (this.globalSettings.enableBPTimerSubmission === false) {
+                return {
+                    success: false,
+                    message: 'BPTimer submission disabled in settings'
+                };
+            }
+
             if (!API_KEY || !DB_URL) {
                 return {
                     success: false,
@@ -209,9 +220,13 @@ class BPTimer {
 
 let bpTimerInstance: BPTimer | null = null;
 
-export function initialize(logger: Logger): BPTimer {
+export function initialize(logger: Logger, globalSettings?: GlobalSettings): BPTimer {
+    console.log('Global Settings in BPTimer initialize:', globalSettings);
     if (!bpTimerInstance) {
-        bpTimerInstance = new BPTimer(API_KEY, DB_URL, logger);
+        bpTimerInstance = new BPTimer(API_KEY, DB_URL, logger, globalSettings);
+    } else if (globalSettings) {
+        // Update settings on existing instance
+        bpTimerInstance['globalSettings'] = globalSettings;
     }
     return bpTimerInstance;
 }

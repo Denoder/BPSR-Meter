@@ -291,6 +291,23 @@ class PacketProcessor {
             } else if (isTargetMonster) {
                 this.#processEnemyAttrs(targetUuid.toNumber(), attrCollection.Attrs);
             }
+
+            for (const attr of attrCollection.Attrs) {
+                if ((attr.Id === 52 || attr.Id === 53) && attr.RawData) {
+                    try {
+                        const position = pb.Position.decode(attr.RawData);
+                        const x = position.X ?? 0;
+                        const y = position.Y ?? 0;
+                        const z = position.Z ?? 0;
+
+                        if (isTargetMonster) {
+                            this.userDataManager.enemyCache.position.set(targetUuid.toNumber(), { x, y, z });
+                        } else if (isTargetPlayer && targetUuid.toNumber() === this.userDataManager.localPlayerUid) {
+                            this.userDataManager.setLocalPlayerPosition({ x, y, z });
+                        }
+                    } catch (e) {}
+                }
+            }
         }
 
         const skillEffect = aoiSyncDelta.SkillEffects;
@@ -376,13 +393,12 @@ class PacketProcessor {
                     }
 
                     if (isDead) {
-                        const enemyUid = `E${targetUuid.toNumber()}`;
+                        const enemyUid = `${targetUuid.toNumber()}`;
                         const monsterId = this.userDataManager.enemyCache.monsterId.get(enemyUid);
                         if (monsterId && TRACKED_MONSTER_IDS.has(String(monsterId))) {
-                            // Only reset tracking if BPTimer submission is enabled
                             if (this.userDataManager.globalSettings.enableBPTimerSubmission !== false) {
                                 const line = this.userDataManager.getCurrentLineId();
-                                const bpTimer = initialize(this.logger);
+                                const bpTimer = initialize(this.logger, this.userDataManager.globalSettings);
                                 setTimeout(() => {
                                     bpTimer.resetMonster(monsterId, line);
                                     this.logger.debug(`[BPTimer] Reset tracking for monster ${monsterId} on line ${line} (isDead flag)`);
@@ -678,7 +694,8 @@ class PacketProcessor {
         for (const attr of attrs) {
             if (!attr.Id || !attr.RawData) continue;
             const reader = pbjs.Reader.create(attr.RawData);
-            this.logger.debug(`Found attrId ${attr.Id} for E${enemyUid} ${attr.RawData.toString('base64')}`);
+            const base64Data = attr.RawData.toString('base64');
+
             switch (attr.Id) {
                 case AttrType.AttrName:
                     const enemyName = reader.string();
@@ -704,7 +721,6 @@ class PacketProcessor {
                     this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
                     break;
                 default:
-                    // this.logger.debug(`Found unknown attrId ${attr.Id} for E${enemyUid} ${attr.RawData.toString('base64')}`);
                     break;
             }
         }
@@ -713,7 +729,7 @@ class PacketProcessor {
     #reportBossHpThreshold(enemyUid: string, currentHp: number) {
         try {
             // Check if BPTimer submission is enabled
-            if (this.userDataManager.globalSettings.enableBPTimerSubmission === false) {
+            if (this.userDataManager.globalSettings?.enableBPTimerSubmission === false) {
                 return;
             }
 
@@ -730,7 +746,7 @@ class PacketProcessor {
 
             if (currentHp === 0 || currentHp <= maxHp * 0.001) {
                 const line = this.userDataManager.getCurrentLineId();
-                const bpTimer = initialize(this.logger);
+                const bpTimer = initialize(this.logger, this.userDataManager.globalSettings);
                 setTimeout(() => {
                     bpTimer.resetMonster(monsterId, line);
                     this.logger.debug(`[BPTimer] Reset tracking for monster ${monsterId} on line ${line} (HP reached 0)`);
@@ -742,7 +758,7 @@ class PacketProcessor {
 
             const line = this.userDataManager.getCurrentLineId();
 
-            const bpTimer = initialize(this.logger);
+            const bpTimer = initialize(this.logger, this.userDataManager.globalSettings);
             bpTimer.createHpReport(monsterId, hpPercentage, line).catch(err => {
                 this.logger.debug(`[BPTimer] Failed to report HP threshold: ${err.message}`);
             });

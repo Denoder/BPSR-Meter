@@ -495,6 +495,13 @@ interface EnemyCache {
     maxHp: Map<string, number>;
     monsterId: Map<string, number>;
     lastSeen: Map<string, number>;
+    position: Map<string, { x: number; y: number; z: number; }>;
+}
+
+interface PlayerPosition {
+    x: number;
+    y: number;
+    z: number;
 }
 
 interface SceneInfo {
@@ -515,6 +522,7 @@ export class UserDataManager {
     logDirExist: Set<string>;
     enemyCache: EnemyCache;
     localPlayerUid: number | null;
+    localPlayerPosition: PlayerPosition | null;
     lastLogTime?: number;
     sceneData: Map<string, SceneInfo>;
 
@@ -535,15 +543,31 @@ export class UserDataManager {
             maxHp: new Map(),
             monsterId: new Map(),
             lastSeen: new Map(),
+            position: new Map(),
         };
         this.sceneData = new Map();
         this.localPlayerUid = null;
+        this.localPlayerPosition = null;
     }
 
     setLocalPlayerUid(uid: number): void {
         if (this.localPlayerUid !== uid) {
             this.localPlayerUid = uid;
         }
+    }
+
+    setLocalPlayerPosition(position: { x: number; y: number; z: number }): void {
+        this.localPlayerPosition = position;
+    }
+
+    calculateDistance(enemyPosition: { x: number; y: number; z: number }): number | null {
+        if (!this.localPlayerPosition) return null;
+
+        const dx = enemyPosition.x - this.localPlayerPosition.x;
+        const dy = enemyPosition.y - this.localPlayerPosition.y;
+        const dz = enemyPosition.z - this.localPlayerPosition.z;
+
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     async initialize(): Promise<void> { }
@@ -774,7 +798,16 @@ export class UserDataManager {
         ]);
         const now = Date.now();
         const STALE_MS = 4500;
+        // Exclude companions
+        const EXCLUDED_MONSTER_IDS = new Set([3100000, 3100001, 3100002]);
+
         enemyIds.forEach((id) => {
+            const monsterId = this.enemyCache.monsterId.get(id);
+
+            if (monsterId && EXCLUDED_MONSTER_IDS.has(monsterId)) {
+                return;
+            }
+
             const last = this.enemyCache.lastSeen.get(id) || 0;
             let hpVal = this.enemyCache.hp.get(id);
 
@@ -786,12 +819,17 @@ export class UserDataManager {
                 }
             }
 
+            const position = this.enemyCache.position.get(id);
+            const distance = position ? this.calculateDistance(position) : null;
+
             result[id] = {
                 name: this.enemyCache.name.get(id),
                 hp: hpVal,
                 max_hp: this.enemyCache.maxHp.get(id),
                 monster_id: this.enemyCache.monsterId.get(id) ?? null,
                 last_seen: this.enemyCache.lastSeen.get(id) ?? null,
+                position: position ? { x: position.x, y: position.y, z: position.z } : null,
+                distance: distance,
             };
         });
         return result;
@@ -803,12 +841,13 @@ export class UserDataManager {
         this.enemyCache.maxHp.clear();
         this.enemyCache.monsterId.clear();
         this.enemyCache.lastSeen.clear();
+        this.enemyCache.position.clear();
     }
 
     async clearAll(isLineSwitch: boolean = false): Promise<void> {
-        const shouldSave = this.users.size > 0 && 
-                          this.globalSettings.enableHistorySave &&
-                          (!isLineSwitch || this.globalSettings.saveOnLineSwitch !== false);
+        const shouldSave = this.users.size > 0 &&
+            this.globalSettings.enableHistorySave &&
+            (!isLineSwitch || this.globalSettings.saveOnLineSwitch !== false);
 
         if (shouldSave) {
             await this.saveAllUserData();
