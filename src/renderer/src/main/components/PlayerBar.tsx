@@ -106,7 +106,7 @@ function PlayerBarComponent({
 
     return (
         <div
-            className={`player-bar ${position === 1 ? "first-player" : ""}`}
+            className={`player-bar max-h-[45px] ${position === 1 ? "first-player" : ""}`}
             data-uid={player.uid}
             data-name={name}
             style={{

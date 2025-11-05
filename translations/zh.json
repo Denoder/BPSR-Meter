@@ -49,6 +49,8 @@
             "sortHealing": "按治疗排序",
             "zoomOut": "缩小",
             "zoomIn": "放大",
+            "increaseHeight": "增加窗口高度",
+            "decreaseHeight": "减少窗口高度",
             "close": "关闭",
             "columns": "列",
             "pauseUpdates": "暂停更新",

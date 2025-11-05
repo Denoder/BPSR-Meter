@@ -49,6 +49,8 @@
             "sortHealing": "Sort by healing",
             "zoomOut": "Zoom out",
             "zoomIn": "Zoom in",
+            "increaseHeight": "Increase window height",
+            "decreaseHeight": "Decrease window height",
             "close": "Close",
             "columns": "Columns",
             "pauseUpdates": "Pause updates",

@@ -25,8 +25,7 @@ export function PlayerList({
         <div id="player-bars-container">
             <div className="dps-meter-container">
                 {players.map((player, index) => {
-                    const isLocalPlayer =
-                        localUid !== null && player.uid === localUid;
+                    const isLocalPlayer = localUid !== null && player.uid === localUid;
 
                     return (
                         <PlayerBar

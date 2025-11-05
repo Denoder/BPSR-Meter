@@ -31,6 +31,7 @@ export default function SettingsApp(): React.JSX.Element {
     const [performanceMode, setPerformanceMode] = useState<boolean>(false);
     const [updateInterval, setUpdateInterval] = useState<number>(100);
     const [disableTransparency, setDisableTransparency] = useState<boolean>(false);
+    const [heightStep, setHeightStep] = useState<number>(20);
     const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
 
     const { t } = useTranslations();
@@ -115,6 +116,15 @@ export default function SettingsApp(): React.JSX.Element {
             }
         } catch (err) {
             console.warn("Failed to load disableTransparency from localStorage", err);
+        }
+
+        try {
+            const heightStepSetting = localStorage.getItem("heightStep");
+            if (heightStepSetting !== null) {
+                setHeightStep(parseInt(heightStepSetting, 10) || 50);
+            }
+        } catch (err) {
+            console.warn("Failed to load heightStep from localStorage", err);
         }
 
         try {
@@ -448,6 +458,37 @@ export default function SettingsApp(): React.JSX.Element {
                     </label>
                     <p className="settings-description">
                         Disables transparent window background to reduce GPU load. Requires application restart to take effect. Recommended for best performance.
+                    </p>
+
+                    <div className="settings-input-row mt-2">
+                        <label className="settings-input-label">Height adjustment step (px):</label>
+                        <input
+                            type="number"
+                            min="10"
+                            max="200"
+                            step="10"
+                            value={heightStep}
+                            onChange={(e) => {
+                                const value = parseInt(e.target.value, 10);
+                                if (!isNaN(value) && value > 0) {
+                                    setHeightStep(value);
+                                    try {
+                                        localStorage.setItem("heightStep", String(value));
+                                    } catch (err) {
+                                        console.warn("Failed to persist heightStep to localStorage", err);
+                                    }
+                                    try {
+                                        window.electronAPI.updateGlobalSettings?.({ heightStep: value });
+                                    } catch (err) {
+                                        console.warn("Failed to notify main process of heightStep change", err);
+                                    }
+                                }
+                            }}
+                            className="settings-number-input"
+                        />
+                    </div>
+                    <p className="settings-description">
+                        How many pixels the window height increases or decreases when using the height adjustment buttons. Default: 20px
                     </p>
                 </div>
 

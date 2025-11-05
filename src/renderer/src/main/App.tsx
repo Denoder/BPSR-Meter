@@ -18,6 +18,8 @@ export function MainApp(): React.JSX.Element {
     const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
     const [showAllPlayers, setShowAllPlayers] = useState<boolean>(false);
     const [skillsScope, setSkillsScope] = useState<"solo" | "nearby">("nearby");
+    const [customMinHeight, setCustomMinHeight] = useState<number>(0);
+    const [heightStep, setHeightStep] = useState<number>(20);
     const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
         dps: true,
         hps: true,
@@ -43,6 +45,30 @@ export function MainApp(): React.JSX.Element {
             }
         } catch (err) {
             console.warn("Failed to load visibleColumns from localStorage", err);
+        }
+
+        try {
+            const savedHeight = localStorage.getItem("customMinHeight");
+            if (savedHeight) {
+                const height = parseInt(savedHeight, 10);
+                if (!isNaN(height) && height >= 0) {
+                    setCustomMinHeight(height);
+                }
+            }
+        } catch (err) {
+            console.warn("Failed to load customMinHeight from localStorage", err);
+        }
+
+        try {
+            const savedStep = localStorage.getItem("heightStep");
+            if (savedStep) {
+                const step = parseInt(savedStep, 10);
+                if (!isNaN(step) && step > 0) {
+                    setHeightStep(step);
+                }
+            }
+        } catch (err) {
+            console.warn("Failed to load heightStep from localStorage", err);
         }
     }, []);
 
@@ -78,6 +104,22 @@ export function MainApp(): React.JSX.Element {
             return unsubscribe;
         } catch (err) {
             console.warn("Failed to setup transparency listener", err);
+        }
+    }, []);
+
+    useEffect(() => {
+        try {
+            const unsubscribe = window.electronAPI.onHeightStepChanged?.((step: number) => {
+                setHeightStep(step);
+                try {
+                    localStorage.setItem("heightStep", step.toString());
+                } catch (e) {
+                    console.warn("Failed to persist heightStep from IPC", e);
+                }
+            });
+            return unsubscribe;
+        } catch (err) {
+            console.warn("Failed to setup heightStep listener", err);
         }
     }, []);
 
@@ -217,13 +259,39 @@ export function MainApp(): React.JSX.Element {
         window.electronAPI.openMonstersWindow();
     }, []);
 
+    const handleIncreaseHeight = useCallback(() => {
+        setCustomMinHeight((prev) => {
+            const newHeight = prev + heightStep;
+            try {
+                localStorage.setItem("customMinHeight", newHeight.toString());
+            } catch (err) {
+                console.warn("Failed to save customMinHeight", err);
+            }
+            return newHeight;
+        });
+        window.electronAPI.increaseWindowHeight("main", heightStep);
+    }, [heightStep]);
+
+    const handleDecreaseHeight = useCallback(() => {
+        setCustomMinHeight((prev) => {
+            const newHeight = Math.max(0, prev - heightStep);
+            try {
+                localStorage.setItem("customMinHeight", newHeight.toString());
+            } catch (err) {
+                console.warn("Failed to save customMinHeight", err);
+            }
+            return newHeight;
+        });
+        window.electronAPI.decreaseWindowHeight("main", heightStep);
+    }, [heightStep]);
+
     useEffect(() => {
         let debounceTimer: number | null = null;
 
         const resizeIfNeeded = (width: number, height: number) => {
-            // Only resize if not currently dragging
             if (!isDragging) {
-                window.electronAPI.resizeWindowToContent("main", width, height, scale);
+                const finalHeight = customMinHeight > 0 ? Math.max(height, customMinHeight) : height;
+                window.electronAPI.resizeWindowToContent("main", width, finalHeight, scale);
             }
         };
 
@@ -246,11 +314,12 @@ export function MainApp(): React.JSX.Element {
             if (debounceTimer) window.clearTimeout(debounceTimer);
             observer.disconnect();
         };
-    }, [isDragging, scale]);
+    }, [isDragging, scale, customMinHeight]);
 
     return (
         <div
             className={`dps-meter ${isLocked ? "locked" : ""}`}
+            style={customMinHeight > 0 ? { minHeight: `${customMinHeight}px`, height: `${customMinHeight}px` } : undefined}
             onMouseOver={handleMouseOver}
             onMouseOut={handleMouseOut}
             onMouseLeave={handleMouseLeave}
@@ -280,6 +349,17 @@ export function MainApp(): React.JSX.Element {
                 onOpenMonsters={handleOpenMonsters}
                 onZoomIn={zoomIn}
                 onZoomOut={zoomOut}
+                onIncreaseHeight={handleIncreaseHeight}
+                onDecreaseHeight={handleDecreaseHeight}
+                heightStep={heightStep}
+                onHeightStepChange={(step: number) => {
+                    setHeightStep(step);
+                    try {
+                        localStorage.setItem("heightStep", step.toString());
+                    } catch (e) {
+                        console.warn("Failed to persist heightStep to localStorage", e);
+                    }
+                }}
                 visibleColumns={visibleColumns}
                 onToggleColumn={(key: string) => {
                     const newState = { ...visibleColumns, [key]: !visibleColumns[key] };

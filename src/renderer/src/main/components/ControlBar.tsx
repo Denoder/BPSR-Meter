@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useRef, useCallback } from "react";
 import { DragIndicator } from "./DragIndicator";
 import { CombatTimer } from "./CombatTimer";
 import type { ViewMode, SortColumn } from "../../shared/types";
@@ -37,6 +37,10 @@ export interface ControlBarProps {
     onOpenMonsters?: () => void;
     onZoomIn: () => void;
     onZoomOut: () => void;
+    onIncreaseHeight?: () => void;
+    onDecreaseHeight?: () => void;
+    heightStep?: number;
+    onHeightStepChange?: (step: number) => void;
 
     // Translations
     t: (key: string, fallback?: string | null) => string;
@@ -76,6 +80,10 @@ export function ControlBar({
     onOpenMonsters,
     onZoomIn,
     onZoomOut,
+    onIncreaseHeight,
+    onDecreaseHeight,
+    heightStep,
+    onHeightStepChange,
     t,
     startTime,
     players,
@@ -84,6 +92,28 @@ export function ControlBar({
 }: ControlBarProps): React.JSX.Element {
     const isNearby = viewMode === "nearby";
     const isSkills = viewMode === "skills";
+    
+    const holdIntervalRef = useRef<number | null>(null);
+    const holdTimeoutRef = useRef<number | null>(null);
+
+    const startHoldAction = useCallback((action: () => void) => {
+        action();
+
+        holdTimeoutRef.current = window.setTimeout(() => {
+            holdIntervalRef.current = window.setInterval(action, 100);
+        }, 300);
+    }, []);
+
+    const stopHoldAction = useCallback(() => {
+        if (holdTimeoutRef.current) {
+            clearTimeout(holdTimeoutRef.current);
+            holdTimeoutRef.current = null;
+        }
+        if (holdIntervalRef.current) {
+            clearInterval(holdIntervalRef.current);
+            holdIntervalRef.current = null;
+        }
+    }, []);
     
     let relevantPlayers = players || [];
     if (viewMode === "solo" && localUid !== null && localUid !== undefined) {
@@ -299,6 +329,40 @@ export function ControlBar({
                         }}
                     >
                         <i className="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+
+                {/* Height Controls */}
+                <div className="flex gap-1">
+                    <button
+                        id="decrease-height-btn"
+                        className="control-button"
+                        onMouseDown={() => onDecreaseHeight && startHoldAction(onDecreaseHeight)}
+                        onMouseUp={stopHoldAction}
+                        onMouseLeave={stopHoldAction}
+                        title={t("ui.buttons.decreaseHeight", "Decrease Height")}
+                        disabled={isLocked}
+                        style={{
+                            opacity: isLocked ? 0.3 : 1,
+                            cursor: isLocked ? "not-allowed" : "pointer",
+                        }}
+                    >
+                        <i className="fa-solid fa-down-left-and-up-right-to-center"></i>
+                    </button>
+                    <button
+                        id="increase-height-btn"
+                        className="control-button"
+                        onMouseDown={() => onIncreaseHeight && startHoldAction(onIncreaseHeight)}
+                        onMouseUp={stopHoldAction}
+                        onMouseLeave={stopHoldAction}
+                        title={t("ui.buttons.increaseHeight", "Increase Height")}
+                        disabled={isLocked}
+                        style={{
+                            opacity: isLocked ? 0.3 : 1,
+                            cursor: isLocked ? "not-allowed" : "pointer",
+                        }}
+                    >
+                        <i className="fa-solid fa-up-right-and-down-left-from-center"></i>
                     </button>
                 </div>
 

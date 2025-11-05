@@ -102,6 +102,8 @@ export interface ElectronAPI {
     resizeWindowToContent: (width: number, height: number, scale: number) => void;
     openGroupWindow: () => void;
     openHistoryWindow: () => void;
+    increaseWindowHeight: (windowType: string, step?: number) => void;
+    decreaseWindowHeight: (windowType: string, step?: number) => void;
     onWindowShown?: (callback: () => void) => void;
     checkForUpdates: () => Promise<UpdateInfo>;
     checkForUpdatesWithDialog: () => Promise<UpdateInfo>;

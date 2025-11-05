@@ -11,7 +11,7 @@ import fs from "fs";
  */
 
 const WINDOW_CONFIGS = {
-    main: { defaultSize: { width: 650, height: 700 }, minSize: { width: 650, height: 700 }, resizable: false },
+    main: { defaultSize: { width: 650, height: 700 }, minSize: { width: 650, height: 700 }, resizable: true },
     group: { defaultSize: { width: 480, height: 530 }, minSize: { width: 400, height: 450 }, resizable: true },
     history: { defaultSize: { width: 800, height: 600 }, minSize: { width: 800, height: 600 }, resizable: true },
     device: { defaultSize: { width: 600, height: 400 }, minSize: { width: 400, height: 300 }, resizable: true },
@@ -121,7 +121,6 @@ async function saveWindowSize(windowType: WindowType, width: number, height: num
 
         settings.windowSizes = { ...settings.windowSizes, [windowType]: lastWindowSizes[windowType] };
         await fs.promises.writeFile(settingsPath, JSON.stringify(settings, null, 4));
-        logToFile(`Saved ${windowType} window: ${width}x${height}${scale ? ` (scale: ${scale})` : ""}`);
     } catch (error) {
         logToFile(`Error saving window size: ${error}`);
     }
@@ -310,6 +309,41 @@ function setupIpcHandlers() {
     ipcMain.on("open-settings-window", () => createOrFocusWindow("settings"));
     ipcMain.on("open-monsters-window", () => createOrFocusWindow("monsters"));
 
+    ipcMain.on("increase-window-height", (event: IpcMainEvent, windowType: WindowType, step: number = 20) => {
+        const senderWindow = BrowserWindow.fromWebContents(event.sender);
+        if (!senderWindow) return;
+
+        const bounds = senderWindow.getBounds();
+        const newHeight = bounds.height + step;
+        senderWindow.setContentSize(bounds.width, newHeight, false);
+        senderWindow.setBounds({ width: bounds.width, height: newHeight }, false);
+
+        if (windowType in lastWindowSizes) {
+            const scale = lastWindowSizes[windowType].scale || 1;
+            lastWindowSizes[windowType] = { width: bounds.width, height: newHeight, scale };
+            saveWindowSize(windowType, bounds.width, newHeight, scale);
+        }
+    });
+
+    ipcMain.on("decrease-window-height", (event: IpcMainEvent, windowType: WindowType, step: number = 20) => {
+        const senderWindow = BrowserWindow.fromWebContents(event.sender);
+        if (!senderWindow) return;
+
+        const bounds = senderWindow.getBounds();
+        const config = WINDOW_CONFIGS[windowType];
+        const minHeight = config?.minSize.height || 300;
+        const newHeight = Math.max(minHeight, bounds.height - step);
+        
+        senderWindow.setContentSize(bounds.width, newHeight, false);
+        senderWindow.setBounds({ width: bounds.width, height: newHeight }, false);
+
+        if (windowType in lastWindowSizes) {
+            const scale = lastWindowSizes[windowType].scale || 1;
+            lastWindowSizes[windowType] = { width: bounds.width, height: newHeight, scale };
+            saveWindowSize(windowType, bounds.width, newHeight, scale);
+        }
+    });
+
     ipcMain.on("update-visible-columns", (_event: IpcMainEvent, cols: Record<string, boolean>) => {
         if (windows.main && !windows.main.isDestroyed()) {
             windows.main.webContents.send("visible-columns-updated", cols);
@@ -326,7 +360,6 @@ function setupIpcHandlers() {
 
             Object.assign(currentSettings, settings);
             await fs.promises.writeFile(settingsPath, JSON.stringify(currentSettings, null, 4));
-            logToFile(`Updated global settings: ${JSON.stringify(settings)}`);
 
             // Broadcast transparency changes to all windows
             if (settings.hasOwnProperty("disableTransparency")) {
@@ -335,6 +368,13 @@ function setupIpcHandlers() {
                         window.webContents.send("transparency-setting-changed", settings.disableTransparency);
                     }
                 });
+            }
+
+            // Broadcast heightStep changes to main window
+            if (settings.hasOwnProperty("heightStep")) {
+                if (windows.main && !windows.main.isDestroyed()) {
+                    windows.main.webContents.send("height-step-changed", settings.heightStep);
+                }
             }
         } catch (error) {
             logToFile(`Error updating global settings: ${error}`);

@@ -30,6 +30,8 @@ export interface ElectronAPI {
     openHistoryWindow: () => void;
     openDeviceWindow: () => void;
     openSettingsWindow: () => void;
+    increaseWindowHeight: (windowType: "main" | "group" | "history" | "device" | "settings" | "monsters", step?: number) => void;
+    decreaseWindowHeight: (windowType: "main" | "group" | "history" | "device" | "settings" | "monsters", step?: number) => void;
     onWindowShown: (callback: () => void) => void;
     saveWindowSize: (
         windowType: "main" | "group" | "history" | "device" | "settings" | "monsters",
@@ -49,6 +51,7 @@ export interface ElectronAPI {
     onVisibleColumnsChanged?: (callback: (cols: Record<string, boolean>) => void) => void;
     updateGlobalSettings?: (settings: Partial<Record<string, any>>) => void;
     onTransparencySettingChanged?: (callback: (isDisabled: boolean) => void) => () => void;
+    onHeightStepChanged?: (callback: (step: number) => void) => () => void;
     deleteHistoryLog?: (logId: string) => Promise<{ success: boolean; error?: string }>;
     checkForUpdates?: () => Promise<UpdateInfo>;
     checkForUpdatesWithDialog?: () => Promise<UpdateInfo>;

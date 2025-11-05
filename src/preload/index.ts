@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     openDeviceWindow: () => ipcRenderer.send("open-device-window"),
     openSettingsWindow: () => ipcRenderer.send("open-settings-window"),
     openMonstersWindow: () => ipcRenderer.send("open-monsters-window"),
+    increaseWindowHeight: (windowType: string, step?: number) => ipcRenderer.send("increase-window-height", windowType, step),
+    decreaseWindowHeight: (windowType: string, step?: number) => ipcRenderer.send("decrease-window-height", windowType, step),
     onWindowShown: (callback: () => void) => ipcRenderer.on("window-shown", () => callback()),
     saveWindowSize: (
         windowType: string,
@@ -38,6 +40,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
         const listener = (_e: IpcRendererEvent, isDisabled: boolean) => callback(isDisabled);
         ipcRenderer.on("transparency-setting-changed", listener);
         return () => ipcRenderer.removeListener("transparency-setting-changed", listener);
+    },
+    onHeightStepChanged: (callback: (step: number) => void) => {
+        const listener = (_e: IpcRendererEvent, step: number) => callback(step);
+        ipcRenderer.on("height-step-changed", listener);
+        return () => ipcRenderer.removeListener("height-step-changed", listener);
     },
     deleteHistoryLog: (logId: string) => ipcRenderer.invoke("delete-history-log", logId),
     checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),

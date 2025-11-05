@@ -34,9 +34,11 @@ body {
     padding: 0;
     border: 0;
     width: 100%;
-    height: 100%;
+    min-height: 100vh;
     pointer-events: none;
     zoom: var(--scale);
+    display: flex;
+    flex-direction: column;
 }
 
 body.performance-mode * {
@@ -74,9 +76,10 @@ body.performance-mode .player-bar::before {
 
 .dps-meter {
     width: fit-content;
-    height: fit-content;
+    height: auto;
     min-width: 750px;
-    min-height: 0;
+    min-height: 300px;
+    max-height: none;
     background: var(--bg-dark);
     padding: 1px;
     display: flex;
@@ -233,6 +236,13 @@ body.performance-mode .player-bar::before {
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 0;
+}
+
+/* Resize handle hover effects */
+.resize-handle:hover .resize-handle-indicator {
+    background: rgba(74, 158, 255, 0.7) !important;
+    box-shadow: 0 0 12px rgba(74, 158, 255, 0.5) !important;
+    height: 8px !important;
 }
 
 .player-bar {
@@ -1078,7 +1088,7 @@ body.performance-mode .player-bar::before {
 
 .dps-meter-container {
     max-width: 100%;
-    max-height: calc(500px * var(--scale));
+    max-height: auto;
     overflow-y: auto;
     overflow-x: hidden;
 }
