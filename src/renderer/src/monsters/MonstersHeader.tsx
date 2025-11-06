@@ -15,7 +15,7 @@ export function MonstersHeader({ onClose, onDragStart, onZoomIn, onZoomOut, t }:
                 <i className="fa-solid fa-grip-vertical"></i>
             </div>
 
-            <span className="group-title">Monsters</span>
+            <span className="group-title">{t ? t("ui.titles.monsters") : "Monsters"}</span>
 
             <div style={{ flex: 1 }} />
 

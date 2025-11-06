@@ -8,7 +8,6 @@ import DeviceApp from "./device/App";
 import SettingsApp from "./settings/App";
 import "/css/style.css";
 
-// Determine which app to render based on current page
 const renderApp = () => {
     const path = window.location.pathname;
 

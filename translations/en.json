@@ -37,7 +37,18 @@
             "noAvailablePlayers": "No available players to add",
             "confirmClearGroup": "Are you sure you want to remove all group members?",
             "noMembersInGroup": "No members in group",
-            "players": "players"
+            "players": "players",
+            "noMonstersFound": "No monsters found.",
+            "everyHour": "Every Hour (XX:00)",
+            "everyHalfHour": "Every Half Hour (XX:30)",
+            "specificTimes": "Specific Times (10:00, 14:00, 18:00 UTC-2)",
+            "next": "Next",
+            "name": "Name",
+            "hp": "HP",
+            "direction": "Direction",
+            "distance": "Distance",
+            "nextSpawn": "Next Spawn",
+            "monsters": "Monsters"
         },
         "buttons": {
             "resetStatistics": "Reset statistics",
@@ -74,7 +85,12 @@
             "disableSaveOnLineSwitch": "Disable save on line switch",
             "toggleTop10All": "Toggle Top 10 / All",
             "save": "Save",
-            "delete": "Delete"
+            "delete": "Delete",
+            "bossesOnly": "Bosses Only",
+            "allMonsters": "All Monsters",
+            "sort": "Sort",
+            "asc": "Asc ↑",
+            "desc": "Desc ↓"
         },
         "titles": {
             "combatHistory": "Combat History",
@@ -84,7 +100,10 @@
             "groupMembers": "Group Members",
             "groupManagement": "Group Management",
             "availablePlayers": "Available Players",
-            "settings": "Settings"
+            "settings": "Settings",
+            "monsters": "Monsters",
+            "monsterList": "Monster List",
+            "bossSchedule": "Boss Schedule"
         },
         "settings": {
             "sections": {

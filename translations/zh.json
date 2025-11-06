@@ -37,7 +37,18 @@
             "noAvailablePlayers": "没有可添加的玩家",
             "confirmClearGroup": "您确定要移除所有小队成员吗？",
             "noMembersInGroup": "小队中没有成员",
-            "players": "玩家"
+            "players": "玩家",
+            "noMonstersFound": "未找到怪物。",
+            "everyHour": "每小时 (XX:00)",
+            "everyHalfHour": "每半小时 (XX:30)",
+            "specificTimes": "特定时间 (UTC-2 10:00, 14:00, 18:00)",
+            "next": "下次刷新",
+            "name": "名称",
+            "hp": "生命值",
+            "direction": "方向",
+            "distance": "距离",
+            "nextSpawn": "下次刷新",
+            "monsters": "怪物"
         },
         "buttons": {
             "resetStatistics": "重置统计",
@@ -74,7 +85,12 @@
             "disableSaveOnLineSwitch": "禁用线路切换保存",
             "toggleTop10All": "切换前十/全部",
             "save": "保存",
-            "delete": "删除"
+            "delete": "删除",
+            "bossesOnly": "仅显示Boss",
+            "allMonsters": "所有怪物",
+            "sort": "排序",
+            "asc": "升序 ↑",
+            "desc": "降序 ↓"
         },
         "titles": {
             "combatHistory": "战斗历史",
@@ -84,7 +100,10 @@
             "groupMembers": "小队成员",
             "groupManagement": "小队管理",
             "availablePlayers": "可用玩家",
-            "settings": "设置"
+            "settings": "设置",
+            "monsters": "怪物",
+            "monsterList": "怪物列表",
+            "bossSchedule": "Boss刷新时间表"
         },
         "settings": {
             "sections": {

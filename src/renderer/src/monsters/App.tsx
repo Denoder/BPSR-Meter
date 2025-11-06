@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import type { ApiResponse } from "../shared/types";
 import { translateForLang } from "../shared/utils/translations";
 import { useTranslations } from "../shared/hooks/useTranslations";
 import { useWindowControls, useSocket } from "../shared/hooks";
 import MonstersHeader from "./MonstersHeader";
-import SortDropdown from "./SortDropdown";
-import { TRACKED_MONSTER_IDS } from "../shared/constants";
+import MonsterList from "./MonsterList";
+import BossSchedule from "./BossSchedule";
+import { BOSS_SPAWN_CONFIGS } from "./bossSpawnTimes";
+import { monsterRespawnTracker } from "./monsterRespawnTracker";
 
 interface MonsterEntry {
     name?: string | null;
@@ -15,6 +17,11 @@ interface MonsterEntry {
     last_seen?: number | null;
     position?: { x: number; y: number; z: number } | null;
     distance?: number | null;
+    direction?: string | null;
+}
+
+interface MonsterData extends ApiResponse {
+    enemy: Record<string, MonsterEntry>;
 }
 
 export default function MonstersApp(): React.JSX.Element {
@@ -23,8 +30,11 @@ export default function MonstersApp(): React.JSX.Element {
     const [error, setError] = useState<string | null>(null);
     const [sortKey, setSortKey] = useState<"id" | "name" | "hp" | "distance">("distance");
     const [sortDesc, setSortDesc] = useState<boolean>(false);
-    const [zhNames, setZhNames] = useState<Record<number, string>>({});
+    const [translatedNames, setTranslatedNames] = useState<Record<number, string>>({});
     const [bossOnlyMode, setBossOnlyMode] = useState<boolean>(false);
+    const [currentTime, setCurrentTime] = useState<Date>(new Date());
+    const [activeTab, setActiveTab] = useState<"monsters" | "schedule">("monsters");
+    const previousMonstersRef = useRef<Record<string, MonsterEntry>>({});
 
     const { scale, zoomIn, zoomOut, handleDragStart, handleClose, isDragging } = useWindowControls({
         baseWidth: 560,
@@ -32,7 +42,7 @@ export default function MonstersApp(): React.JSX.Element {
         windowType: "monsters",
     });
 
-    const { t } = useTranslations();
+    const { t, currentLanguage } = useTranslations();
     const { on } = useSocket();
 
     useEffect(() => {
@@ -54,17 +64,52 @@ export default function MonstersApp(): React.JSX.Element {
     }, []);
 
     useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        if (activeTab !== "schedule") return;
+
+        const loadBossNames = async () => {
+            try {
+                const allBossIds = new Set<number>();
+                BOSS_SPAWN_CONFIGS.forEach(config => {
+                    config.monsterIds.forEach(id => allBossIds.add(Number(id)));
+                });
+
+                const newNames: Record<number, string> = {};
+                for (const mid of allBossIds) {
+                    const key = `monsters.${mid}`;
+                    const translatedName = await translateForLang(currentLanguage, key, null);
+                    if (translatedName) newNames[mid] = translatedName;
+                }
+
+                if (Object.keys(newNames).length > 0) {
+                    setTranslatedNames(newNames);
+                }
+            } catch (e) {
+                console.warn("Failed to load boss names:", e);
+            }
+        };
+
+        loadBossNames();
+    }, [activeTab, currentLanguage]);
+
+    useEffect(() => {
         let mounted = true;
 
-        const unsubscribe = on("monsterData", (data: ApiResponse) => {
+        const unsubscribe = on("monsterData", (data: MonsterData) => {
             if (!mounted) return;
 
             try {
-                // @ts-ignore
                 if (data && data.enemy) {
-                    // @ts-ignore
                     const incoming: Record<string, MonsterEntry> = data.enemy || {};
 
+                    // Filter out invalid entries
                     const filtered = Object.fromEntries(
                         Object.entries(incoming).filter(([_id, entry]) => {
                             if (!entry) return false;
@@ -72,9 +117,31 @@ export default function MonstersApp(): React.JSX.Element {
                             if (typeof hp !== "number") return true;
                             return hp >= 0;
                         }),
-                    ) as Record<string, MonsterEntry>;
+                    );
+
+                    // Track monster deaths and respawns
+                    const previousMonsters = previousMonstersRef.current;
+                    for (const [uid, monster] of Object.entries(filtered)) {
+                        const previousMonster = previousMonsters[uid];
+                        const monsterId = monster.monster_id?.toString();
+                        
+                        if (monsterId) {
+                            if (monster.hp && monster.hp > 0) {
+                                if (!previousMonster || previousMonster.hp === 0 || previousMonster.hp === null) {
+                                    monsterRespawnTracker.recordRespawn(uid, monsterId);
+                                }
+                            }
+                            else if (monster.hp === 0 && previousMonster && previousMonster.hp && previousMonster.hp > 0) {
+                                monsterRespawnTracker.recordDeath(uid, monsterId);
+                            }
+                        }
+                    }
+
+                    previousMonstersRef.current = filtered;
+                    
                     setMonsters(filtered);
 
+                    // Load missing translations
                     (async () => {
                         try {
                             const missingIds = new Set<number>();
@@ -85,14 +152,14 @@ export default function MonstersApp(): React.JSX.Element {
                             }
                             if (missingIds.size === 0) return;
 
-                            const newZh: Record<number, string> = {};
+                            const newNames: Record<number, string> = {};
                             for (const mid of missingIds) {
                                 const key = `monsters.${mid}`;
-                                const zh = await translateForLang("zh", key, null);
-                                if (zh) newZh[mid] = zh;
+                                const translatedName = await translateForLang(currentLanguage, key, null);
+                                if (translatedName) newNames[mid] = translatedName;
                             }
-                            if (Object.keys(newZh).length > 0) {
-                                setZhNames((s) => ({ ...s, ...newZh }));
+                            if (Object.keys(newNames).length > 0) {
+                                setTranslatedNames((s) => ({ ...s, ...newNames }));
                             }
                         } catch (e) {
                         }
@@ -117,7 +184,6 @@ export default function MonstersApp(): React.JSX.Element {
         let debounceTimer: number | null = null;
 
         const resizeIfNeeded = (width: number, height: number) => {
-            // Only resize if not currently dragging
             if (!isDragging) {
                 window.electronAPI.resizeWindowToContent("monsters", width, height, scale);
             }
@@ -145,108 +211,49 @@ export default function MonstersApp(): React.JSX.Element {
 
     return (
         <div className="monsters-window pointer-events-auto">
-            <MonstersHeader onClose={handleClose} onDragStart={handleDragStart} onZoomIn={zoomIn} onZoomOut={zoomOut} />
+            <MonstersHeader onClose={handleClose} onDragStart={handleDragStart} onZoomIn={zoomIn} onZoomOut={zoomOut} t={t} />
+
+            {/* Tab Navigation */}
+            <div className="flex gap-1 p-2 pb-0 mb-2">
+                <button
+                    onClick={() => setActiveTab("monsters")}
+                    className="px-4 py-2 text-sm font-semibold rounded"
+                    style={{
+                        background: activeTab === "monsters" ? "rgba(52, 152, 219, 0.3)" : "rgba(255,255,255,0.05)",
+                        color: activeTab === "monsters" ? "#3498db" : "rgba(255,255,255,0.6)"
+                    }}
+                >
+                    {t("ui.titles.monsterList")}
+                </button>
+                <button
+                    onClick={() => setActiveTab("schedule")}
+                    className="px-4 py-2 text-sm font-semibold rounded"
+                    style={{
+                        background: activeTab === "schedule" ? "rgba(52, 152, 219, 0.3)" : "rgba(255,255,255,0.05)",
+                        color: activeTab === "schedule" ? "#3498db" : "rgba(255,255,255,0.6)",
+                    }}
+                >
+                    {t("ui.titles.bossSchedule")}
+                </button>
+            </div>
+
             {isLoading ? (
-                <div>Loading...</div>
+                <div>{t("ui.messages.loading")}</div>
             ) : error ? (
                 <div style={{ color: "#f88" }}>Error: {error}</div>
+            ) : activeTab === "monsters" ? (
+                <MonsterList
+                    monsters={monsters}
+                    bossOnlyMode={bossOnlyMode}
+                    setBossOnlyMode={setBossOnlyMode}
+                    sortKey={sortKey}
+                    setSortKey={setSortKey}
+                    sortDesc={sortDesc}
+                    setSortDesc={setSortDesc}
+                    t={t}
+                />
             ) : (
-                <div className="monsters-container">
-                    <div className="flex justify-between items-center mb-2 gap-2">
-                        <div className="flex items-center gap-2">
-                            <div className="text-sm font-semibold">
-                                Monsters ({
-                                    bossOnlyMode 
-                                        ? Object.values(monsters).filter(m => m.monster_id && TRACKED_MONSTER_IDS.has(String(m.monster_id))).length
-                                        : Object.keys(monsters).length
-                                })
-                            </div>
-                            <button 
-                                onClick={() => setBossOnlyMode((prev) => !prev)}
-                                className="text-xs px-2 py-1 rounded"
-                                style={{ 
-                                    background: bossOnlyMode ? "#3498db" : "rgba(255,255,255,0.1)",
-                                    color: bossOnlyMode ? "#fff" : "rgba(255,255,255,0.7)"
-                                }}
-                            >
-                                {bossOnlyMode ? "Bosses Only" : "All Monsters"}
-                            </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <label className="text-xs">Sort:</label>
-                            <div className="min-w-[140px]">
-                                <SortDropdown value={sortKey} onChange={(v) => setSortKey(v as any)} />
-                            </div>
-                            <button onClick={() => setSortDesc((s) => !s)} className="p-1">{sortDesc ? "Desc" : "Asc"}</button>
-                        </div>
-                    </div>
-
-                    <table className="monsters-table w-full border-collapse">
-                        <thead>
-                            <tr>
-                                <th className="text-left p-1">Name</th>
-                                <th className="text-right p-1">HP</th>
-                                <th className="text-right p-1">Max HP</th>
-                                <th className="text-right p-1">HP %</th>
-                                <th className="text-right p-1 pl-5">Distance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {Object.entries(monsters)
-                                .map(([id, m]) => ({ id, ...m }))
-                                .filter((m) => {
-                                    if (!bossOnlyMode) return true;
-                                    return m.monster_id && TRACKED_MONSTER_IDS.has(String(m.monster_id));
-                                })
-                                .sort((a, b) => {
-                                    if (sortKey === "hp") {
-                                        const ah = a.hp ?? -Infinity;
-                                        const bh = b.hp ?? -Infinity;
-                                        return sortDesc ? bh - ah : ah - bh;
-                                    }
-                                    if (sortKey === "name") {
-                                        const an = (a.name || "").toString();
-                                        const bn = (b.name || "").toString();
-                                        return sortDesc ? bn.localeCompare(an) : an.localeCompare(bn);
-                                    }
-                                    if (sortKey === "distance") {
-                                        const ad = a.distance ?? Infinity;
-                                        const bd = b.distance ?? Infinity;
-                                        return sortDesc ? bd - ad : ad - bd;
-                                    }
-                                    return 0;
-                                })
-                                .map((m) => {
-                                    const displayName = `${t(`monsters.${m.monster_id}`, m?.name ?? "Unknown")}`;
-                                    const pct = m.max_hp && m.hp ? Math.max(0, Math.min(1, (m.hp / m.max_hp))) : null;
-                                    const distanceText = m.distance !== null && m.distance !== undefined
-                                        ? `${m.distance.toFixed(1)}m`
-                                        : "-";
-                                    return (
-                                        <tr key={m.id} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                                            <td className="p-2">{displayName}</td>
-                                            <td className="p-2 text-right">{m?.hp ?? "-"}</td>
-                                            <td className="p-2 text-right">{m?.max_hp ?? "-"}</td>
-                                            <td className="p-2 text-right min-w-[160px]">
-                                                {pct === null ? (
-                                                    "-"
-                                                ) : (
-                                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                        <div style={{ flex: 1, background: "rgba(255,255,255,0.06)", height: 10, borderRadius: 6, overflow: "hidden" }}>
-                                                            <div style={{ width: `${Math.round(pct * 100)}%`, height: "100%", background: pct > 0.6 ? "#2ecc71" : pct > 0.3 ? "#f1c40f" : "#e74c3c" }} />
-                                                        </div>
-                                                        <div style={{ minWidth: 48, textAlign: "right", fontSize: 12 }}>{Math.round(pct * 100)}%</div>
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="p-2 text-right text-xs font-mono">{distanceText}</td>
-                                        </tr>
-                                    );
-                                })}
-                        </tbody>
-                    </table>
-                    {Object.keys(monsters).length === 0 && <div style={{ marginTop: 8 }}>No monsters found.</div>}
-                </div>
+                <BossSchedule translatedNames={translatedNames} />
             )}
         </div>
     );

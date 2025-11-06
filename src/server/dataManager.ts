@@ -581,6 +581,48 @@ export class UserDataManager {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
+    /**
+     * Calculate the direction from the local player to the enemy position. The protbuf
+     * has a direction property, but it's always 0 or undefined, so this is an alternative.
+     * @param enemyPosition The position of the enemy.
+     * @returns string | null
+     */
+    calculateDirection(enemyPosition: { x: number; y: number; z: number }): string | null {
+        if (!this.localPlayerPosition) return null;
+
+        const dx = enemyPosition.x - this.localPlayerPosition.x;
+        const dz = enemyPosition.z - this.localPlayerPosition.z;
+
+        const absX = Math.abs(dx);
+        const absZ = Math.abs(dz);
+
+        if (absX > absZ) {
+            if (dx > 0) {
+                if (absZ > absX * 0.4) {
+                    return dz > 0 ? "NE" : "SE";
+                }
+                return "E";
+            } else {
+                if (absZ > absX * 0.4) {
+                    return dz > 0 ? "NW" : "SW";
+                }
+                return "W";
+            }
+        } else {
+            if (dz > 0) {
+                if (absX > absZ * 0.4) {
+                    return dx > 0 ? "NE" : "NW";
+                }
+                return "N";
+            } else {
+                if (absX > absZ * 0.4) {
+                    return dx > 0 ? "SE" : "SW";
+                }
+                return "S";
+            }
+        }
+    }
+
     async initialize(): Promise<void> { }
 
     getUser(uid: number): UserData {
@@ -875,6 +917,7 @@ export class UserDataManager {
 
             const position = this.enemyCache.position.get(id);
             const distance = position ? this.calculateDistance(position) : null;
+            const direction = position ? this.calculateDirection(position) : null;
 
             result[id] = {
                 name: this.enemyCache.name.get(id),
@@ -884,6 +927,7 @@ export class UserDataManager {
                 last_seen: this.enemyCache.lastSeen.get(id) ?? null,
                 position: position ? { x: position.x, y: position.y, z: position.z } : null,
                 distance: distance,
+                direction: direction,
             };
         });
         return result;

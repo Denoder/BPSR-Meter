@@ -117,6 +117,8 @@ export function useDataFetching(
 
     const lastStartTimeRef = useRef<number>(0);
     const lastTotalDamageRef = useRef<number>(0);
+    const hasDataRef = useRef<boolean>(false);
+    const isLoadingRef = useRef<boolean>(true);
     const { on, emitWithResponse } = useSocket();
 
     useEffect(() => {
@@ -160,6 +162,9 @@ export function useDataFetching(
                         console.log("Server reset detected. Clearing local state.");
                         lastStartTimeRef.current = userData.startTime;
                         lastTotalDamageRef.current = 0;
+                        hasDataRef.current = false;
+                        isLoadingRef.current = true;
+                        setIsLoading(true);
                         onServerReset?.();
                     }
 
@@ -200,15 +205,21 @@ export function useDataFetching(
                     if (!userArray || userArray.length === 0) {
                         setPlayers([]);
 
-                        if (viewMode === "solo" && localUid === null) {
-                            setIsLoading(true);
-                        } else {
-                            setIsLoading(false);
+                        if (!hasDataRef.current) {
+                            const shouldBeLoading = viewMode === "solo" && localUid === null;
+                            if (isLoadingRef.current !== shouldBeLoading) {
+                                isLoadingRef.current = shouldBeLoading;
+                                setIsLoading(shouldBeLoading);
+                            }
                         }
                         return;
                     }
 
-                    setIsLoading(false);
+                    hasDataRef.current = true;
+                    if (isLoadingRef.current !== false) {
+                        isLoadingRef.current = false;
+                        setIsLoading(false);
+                    }
 
                     const sumaTotalDamage = userArray.reduce(
                         (acc: number, u: PlayerUser) =>
