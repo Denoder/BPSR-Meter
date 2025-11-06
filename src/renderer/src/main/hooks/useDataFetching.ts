@@ -199,7 +199,12 @@ export function useDataFetching(
 
                     if (!userArray || userArray.length === 0) {
                         setPlayers([]);
-                        setIsLoading(true);
+
+                        if (viewMode === "solo" && localUid === null) {
+                            setIsLoading(true);
+                        } else {
+                            setIsLoading(false);
+                        }
                         return;
                     }
 

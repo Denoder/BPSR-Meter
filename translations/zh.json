@@ -86,6 +86,39 @@
             "availablePlayers": "可用玩家",
             "settings": "设置"
         },
+        "settings": {
+            "sections": {
+                "visibleColumns": "可见列",
+                "bptimerIntegration": "BPTimer 集成",
+                "generalOptions": "常规选项",
+                "performanceOptions": "性能选项",
+                "updates": "更新"
+            },
+            "labels": {
+                "submitBossData": "提交 Boss HP 数据到 BPTimer",
+                "clearOnServerChange": "切换服务器时清除数据",
+                "clearOnTimeout": "闲置超时时清除数据",
+                "timeoutDuration": "超时时长（秒）：",
+                "disableTransparency": "禁用窗口透明度",
+                "enableManualHeight": "启用手动高度调整",
+                "heightAdjustmentStep": "高度调整步长（像素）：",
+                "performanceMode": "性能模式（减少 CPU/GPU 使用）",
+                "updateInterval": "更新间隔（毫秒）：",
+                "checkForUpdates": "检查更新",
+                "checkingForUpdates": "正在检查更新..."
+            },
+            "descriptions": {
+                "submitBossData": "启用后，Boss HP 阈值会自动提交到 BPTimer 数据库，帮助社区追踪刷新时间。",
+                "clearOnServerChange": "切换服务器或区域时自动清除 DPS 统计数据。",
+                "clearOnTimeout": "战斗闲置一段时间后自动清除 DPS 统计数据。",
+                "disableTransparency": "禁用透明窗口背景以减少 GPU 负载。需要重启应用程序才能生效。推荐用于最佳性能。",
+                "enableManualHeight": "启用后，使用高度调整按钮手动控制窗口高度。禁用后，窗口高度自动适应内容。",
+                "heightAdjustmentStep": "使用高度调整按钮时窗口高度增加或减少的像素数。仅在启用手动高度调整时生效。默认：20像素",
+                "performanceMode": "将更新频率降低到 250ms（从 100ms）以提高 FPS。如果遇到掉帧问题，建议启用。",
+                "updateInterval": "DPS 计量器更新频率。数值越高，性能越好但响应越慢。默认：100ms",
+                "checkForUpdates": "检查 GitHub 上是否有新版本的 BPSR Meter。启动时会自动检查更新。"
+            }
+        },
         "stats": {
             "dps": "DPS",
             "hps": "HPS",

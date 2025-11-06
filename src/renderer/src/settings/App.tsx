@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import "/css/style.css";
 import { useWindowControls } from "../shared/hooks";
 import { useTranslations } from "../shared/hooks/useTranslations";
+import { useSocket } from "../shared/hooks/useSocket";
+import * as storage from "../shared/utils/localStorage";
 
 const DEFAULT_KEYS = [
     "dps",
@@ -32,8 +34,10 @@ export default function SettingsApp(): React.JSX.Element {
     const [updateInterval, setUpdateInterval] = useState<number>(100);
     const [disableTransparency, setDisableTransparency] = useState<boolean>(false);
     const [heightStep, setHeightStep] = useState<number>(20);
+    const [enableManualHeight, setEnableManualHeight] = useState<boolean>(false);
     const [checkingUpdate, setCheckingUpdate] = useState<boolean>(false);
 
+    useSocket();
     const { t } = useTranslations();
 
     const { zoomIn, zoomOut, handleDragStart, handleClose } = useWindowControls({
@@ -42,99 +46,81 @@ export default function SettingsApp(): React.JSX.Element {
         windowType: "settings",
     });
 
+    // Fetch settings from backend API
     useEffect(() => {
-        try {
-            const raw = localStorage.getItem("visibleColumns");
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed && typeof parsed === "object") {
-                    setVisibleColumns((prev) => ({ ...prev, ...parsed }));
+        const fetchSettings = async () => {
+            try {
+                const response = await fetch("/api/settings");
+                const json = await response.json();
+
+                if (json && json.code === 0 && json.data) {
+                    const settings = json.data;
+
+                    if (settings.hasOwnProperty("enableBPTimerSubmission")) {
+                        const localValue = storage.getBoolean("enableBPTimerSubmission");
+                        setEnableBPTimer(localValue !== null ? localValue : settings.enableBPTimerSubmission);
+                    }
+
+                    if (settings.hasOwnProperty("autoClearOnServerChange")) {
+                        const localValue = storage.getBoolean("autoClearOnServerChange");
+                        setAutoClearOnServerChange(localValue !== null ? localValue : settings.autoClearOnServerChange);
+                    }
+
+                    if (settings.hasOwnProperty("autoClearOnTimeout")) {
+                        const localValue = storage.getBoolean("autoClearOnTimeout");
+                        setAutoClearOnTimeout(localValue !== null ? localValue : settings.autoClearOnTimeout);
+                    }
+
+                    if (settings.hasOwnProperty("autoClearTimeoutSeconds")) {
+                        const localValue = storage.getNumber("autoClearTimeoutSeconds");
+                        setAutoClearTimeoutSeconds(localValue !== null ? localValue : settings.autoClearTimeoutSeconds);
+                    }
+
+                    if (settings.hasOwnProperty("performanceMode")) {
+                        const localValue = storage.getBoolean("performanceMode");
+                        setPerformanceMode(localValue !== null ? localValue : settings.performanceMode);
+                    }
+
+                    if (settings.hasOwnProperty("updateIntervalMs")) {
+                        const localValue = storage.getNumber("updateIntervalMs");
+                        setUpdateInterval(localValue !== null ? localValue : settings.updateIntervalMs);
+                    }
+
+                    if (settings.hasOwnProperty("disableTransparency")) {
+                        const localValue = storage.getBoolean("disableTransparency");
+                        setDisableTransparency(localValue !== null ? localValue : settings.disableTransparency);
+                    }
+
+                    if (settings.hasOwnProperty("heightStep")) {
+                        const localValue = storage.getNumber("heightStep");
+                        setHeightStep(localValue !== null ? localValue : settings.heightStep);
+                    }
+
+                    if (settings.hasOwnProperty("enableManualHeight")) {
+                        const localValue = storage.getBoolean("enableManualHeight");
+                        setEnableManualHeight(localValue !== null ? localValue : settings.enableManualHeight);
+                    }
                 }
+            } catch (err) {
+                console.warn("Failed to fetch settings from API, using localStorage only", err);
             }
-        } catch (err) {
-            console.warn("Failed to load visibleColumns from localStorage", err);
+        };
+
+        fetchSettings();
+    }, []);
+
+    useEffect(() => {
+        // Load visibleColumns from localStorage
+        const visibleCols = storage.getJSON<Record<string, boolean>>("visibleColumns");
+        if (visibleCols && typeof visibleCols === "object") {
+            setVisibleColumns((prev) => ({ ...prev, ...visibleCols }));
         }
 
-        try {
-            const bpTimerSetting = localStorage.getItem("enableBPTimerSubmission");
-            if (bpTimerSetting !== null) {
-                setEnableBPTimer(bpTimerSetting === "true");
-            }
-        } catch (err) {
-            console.warn("Failed to load BPTimer setting from localStorage", err);
-        }
+        // Apply transparency setting
+        const isDisabled = storage.getBoolean("disableTransparency", false);
+        document.body.style.backgroundColor = isDisabled ? "#000" : "transparent";
 
-        try {
-            const serverChangeSetting = localStorage.getItem("autoClearOnServerChange");
-            if (serverChangeSetting !== null) {
-                setAutoClearOnServerChange(serverChangeSetting === "true");
-            }
-        } catch (err) {
-            console.warn("Failed to load autoClearOnServerChange from localStorage", err);
-        }
-
-        try {
-            const timeoutSetting = localStorage.getItem("autoClearOnTimeout");
-            if (timeoutSetting !== null) {
-                setAutoClearOnTimeout(timeoutSetting === "true");
-            }
-        } catch (err) {
-            console.warn("Failed to load autoClearOnTimeout from localStorage", err);
-        }
-
-        try {
-            const timeoutSecondsSetting = localStorage.getItem("autoClearTimeoutSeconds");
-            if (timeoutSecondsSetting !== null) {
-                setAutoClearTimeoutSeconds(parseInt(timeoutSecondsSetting, 10) || 20);
-            }
-        } catch (err) {
-            console.warn("Failed to load autoClearTimeoutSeconds from localStorage", err);
-        }
-
-        try {
-            const perfModeSetting = localStorage.getItem("performanceMode");
-            if (perfModeSetting !== null) {
-                setPerformanceMode(perfModeSetting === "true");
-            }
-        } catch (err) {
-            console.warn("Failed to load performanceMode from localStorage", err);
-        }
-
-        try {
-            const intervalSetting = localStorage.getItem("updateIntervalMs");
-            if (intervalSetting !== null) {
-                setUpdateInterval(parseInt(intervalSetting, 10) || 100);
-            }
-        } catch (err) {
-            console.warn("Failed to load updateIntervalMs from localStorage", err);
-        }
-
-        try {
-            const transparencySetting = localStorage.getItem("disableTransparency");
-            if (transparencySetting !== null) {
-                setDisableTransparency(transparencySetting === "true");
-            }
-        } catch (err) {
-            console.warn("Failed to load disableTransparency from localStorage", err);
-        }
-
-        try {
-            const heightStepSetting = localStorage.getItem("heightStep");
-            if (heightStepSetting !== null) {
-                setHeightStep(parseInt(heightStepSetting, 10) || 50);
-            }
-        } catch (err) {
-            console.warn("Failed to load heightStep from localStorage", err);
-        }
-
-        try {
-            const transparencySetting = localStorage.getItem("disableTransparency");
-            const isDisabled = transparencySetting === "true";
-            document.body.style.backgroundColor = isDisabled ? "#000" : "transparent";
-        } catch (err) {
-            console.warn("Failed to apply transparency setting", err);
-        }
-
+        // Setup transparency listener
         try {
             const unsubscribe = window.electronAPI.onTransparencySettingChanged?.((isDisabled: boolean) => {
                 document.body.style.backgroundColor = isDisabled ? "#000" : "transparent";
@@ -149,11 +135,7 @@ export default function SettingsApp(): React.JSX.Element {
     const toggle = (key: string) => {
         const next = { ...visibleColumns, [key]: !visibleColumns[key] };
         setVisibleColumns(next);
-        try {
-            localStorage.setItem("visibleColumns", JSON.stringify(next));
-        } catch (e) {
-            console.warn("Failed to persist visibleColumns to localStorage", e);
-        }
+        storage.setJSON("visibleColumns", next);
 
         try {
             window.electronAPI.updateVisibleColumns(next);
@@ -165,116 +147,64 @@ export default function SettingsApp(): React.JSX.Element {
     const toggleBPTimer = () => {
         const newValue = !enableBPTimer;
         setEnableBPTimer(newValue);
-        try {
-            localStorage.setItem("enableBPTimerSubmission", String(newValue));
-        } catch (e) {
-            console.warn("Failed to persist BPTimer setting to localStorage", e);
-        }
-
-        try {
-            window.electronAPI.updateGlobalSettings({ enableBPTimerSubmission: newValue });
-        } catch (err) {
-            console.warn("Failed to notify main process of BPTimer setting change", err);
-        }
+        storage.setItem("enableBPTimerSubmission", newValue);
+        window.electronAPI.updateGlobalSettings({ enableBPTimerSubmission: newValue });
     };
 
     const toggleAutoClearOnServerChange = () => {
         const newValue = !autoClearOnServerChange;
         setAutoClearOnServerChange(newValue);
-        try {
-            localStorage.setItem("autoClearOnServerChange", String(newValue));
-        } catch (e) {
-            console.warn("Failed to persist autoClearOnServerChange to localStorage", e);
-        }
+        storage.setItem("autoClearOnServerChange", newValue);
 
-        try {
-            window.electronAPI.updateGlobalSettings({ autoClearOnServerChange: newValue });
-        } catch (err) {
-            console.warn("Failed to notify main process of autoClearOnServerChange change", err);
-        }
+        window.electronAPI.updateGlobalSettings({ autoClearOnServerChange: newValue });
     };
 
     const toggleAutoClearOnTimeout = () => {
         const newValue = !autoClearOnTimeout;
         setAutoClearOnTimeout(newValue);
-        try {
-            localStorage.setItem("autoClearOnTimeout", String(newValue));
-        } catch (e) {
-            console.warn("Failed to persist autoClearOnTimeout to localStorage", e);
-        }
-
-        try {
-            window.electronAPI.updateGlobalSettings({ autoClearOnTimeout: newValue });
-        } catch (err) {
-            console.warn("Failed to notify main process of autoClearOnTimeout change", err);
-        }
+        storage.setItem("autoClearOnTimeout", newValue);
+        window.electronAPI.updateGlobalSettings({ autoClearOnTimeout: newValue });
     };
 
     const handleTimeoutSecondsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = parseInt(e.target.value, 10);
         if (!isNaN(value) && value > 0 && value <= 300) {
             setAutoClearTimeoutSeconds(value);
-            try {
-                localStorage.setItem("autoClearTimeoutSeconds", String(value));
-            } catch (err) {
-                console.warn("Failed to persist autoClearTimeoutSeconds to localStorage", err);
-            }
-
-            try {
-                window.electronAPI.updateGlobalSettings({ autoClearTimeoutSeconds: value });
-            } catch (err) {
-                console.warn("Failed to notify main process of autoClearTimeoutSeconds change", err);
-            }
+            storage.setItem("autoClearTimeoutSeconds", value);
+            window.electronAPI.updateGlobalSettings({ autoClearTimeoutSeconds: value });
         }
     };
 
     const togglePerformanceMode = () => {
         const newValue = !performanceMode;
         setPerformanceMode(newValue);
-        
+
         // Apply performance mode class immediately
         if (newValue) {
             document.body.classList.add("performance-mode");
         } else {
             document.body.classList.remove("performance-mode");
         }
-        
+
         // Auto-adjust update interval based on performance mode
         const newInterval = newValue ? 250 : 100;
         setUpdateInterval(newInterval);
-        
-        try {
-            localStorage.setItem("performanceMode", String(newValue));
-            localStorage.setItem("updateIntervalMs", String(newInterval));
-        } catch (e) {
-            console.warn("Failed to persist performance settings to localStorage", e);
-        }
 
-        try {
-            window.electronAPI.updateGlobalSettings({ 
-                performanceMode: newValue,
-                updateIntervalMs: newInterval
-            });
-        } catch (err) {
-            console.warn("Failed to notify main process of performance settings change", err);
-        }
+        storage.setItem("performanceMode", newValue);
+        storage.setItem("updateIntervalMs", newInterval);
+
+        window.electronAPI.updateGlobalSettings({
+            performanceMode: newValue,
+            updateIntervalMs: newInterval
+        });
     };
 
     const handleUpdateIntervalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = parseInt(e.target.value, 10);
         if (!isNaN(value) && value >= 50 && value <= 1000) {
             setUpdateInterval(value);
-            try {
-                localStorage.setItem("updateIntervalMs", String(value));
-            } catch (err) {
-                console.warn("Failed to persist updateIntervalMs to localStorage", err);
-            }
-
-            try {
-                window.electronAPI.updateGlobalSettings({ updateIntervalMs: value });
-            } catch (err) {
-                console.warn("Failed to notify main process of updateIntervalMs change", err);
-            }
+            storage.setItem("updateIntervalMs", value);
+            window.electronAPI.updateGlobalSettings({ updateIntervalMs: value });
         }
     };
 
@@ -282,20 +212,10 @@ export default function SettingsApp(): React.JSX.Element {
         const newValue = !disableTransparency;
         setDisableTransparency(newValue);
 
-        // Apply background color immediately
         document.body.style.backgroundColor = newValue ? "#000" : "transparent";
 
-        try {
-            localStorage.setItem("disableTransparency", String(newValue));
-        } catch (err) {
-            console.warn("Failed to persist disableTransparency to localStorage", err);
-        }
-
-        try {
-            window.electronAPI.updateGlobalSettings({ disableTransparency: newValue });
-        } catch (err) {
-            console.warn("Failed to notify main process of disableTransparency change", err);
-        }
+        storage.setItem("disableTransparency", newValue);
+        window.electronAPI.updateGlobalSettings({ disableTransparency: newValue });
     };
 
     const handleCheckForUpdates = async () => {
@@ -307,7 +227,7 @@ export default function SettingsApp(): React.JSX.Element {
         setCheckingUpdate(true);
         try {
             const updateInfo = await window.electronAPI.checkForUpdatesWithDialog();
-            
+
             if (!updateInfo.available && !updateInfo.error) {
                 alert(`You're running the latest version (${updateInfo.currentVersion})`);
             } else if (updateInfo.error) {
@@ -341,7 +261,7 @@ export default function SettingsApp(): React.JSX.Element {
             </div>
             <div className="settings-container">
                 <div className="settings-columns mt-3">
-                    <h3 className="settings-section-title">Visible Columns</h3>
+                    <h3 className="settings-section-title">{t("ui.settings.sections.visibleColumns")}</h3>
                     <div className="settings-grid">
                         {DEFAULT_KEYS.map((k) => (
                             <label key={k} className="column-item settings-row">
@@ -358,7 +278,7 @@ export default function SettingsApp(): React.JSX.Element {
                 </div>
 
                 <div className="settings-columns mt-4">
-                    <h3 className="settings-section-title">BPTimer Integration</h3>
+                    <h3 className="settings-section-title">{t("ui.settings.sections.bptimerIntegration")}</h3>
                     <label className="column-item settings-row">
                         <input
                             type="checkbox"
@@ -366,15 +286,15 @@ export default function SettingsApp(): React.JSX.Element {
                             onChange={toggleBPTimer}
                         />
                         <span className="fake-checkbox" aria-hidden></span>
-                        <span className="column-label">Submit boss HP data to BPTimer</span>
+                        <span className="column-label">{t("ui.settings.labels.submitBossData")}</span>
                     </label>
                     <p className="settings-description">
-                        When enabled, boss HP thresholds are automatically submitted to the BPTimer database to help the community track spawn times.
+                        {t("ui.settings.descriptions.submitBossData")}
                     </p>
                 </div>
 
                 <div className="settings-columns mt-4">
-                    <h3 className="settings-section-title">Auto Clear Options</h3>
+                    <h3 className="settings-section-title">{t("ui.settings.sections.generalOptions")}</h3>
                     <label className="column-item settings-row">
                         <input
                             type="checkbox"
@@ -382,10 +302,10 @@ export default function SettingsApp(): React.JSX.Element {
                             onChange={toggleAutoClearOnServerChange}
                         />
                         <span className="fake-checkbox" aria-hidden></span>
-                        <span className="column-label">Clear data on server change</span>
+                        <span className="column-label">{t("ui.settings.labels.clearOnServerChange")}</span>
                     </label>
                     <p className="settings-description">
-                        Automatically clears DPS statistics when changing servers or zones.
+                        {t("ui.settings.descriptions.clearOnServerChange")}
                     </p>
                     <label className="column-item settings-row">
                         <input
@@ -394,14 +314,14 @@ export default function SettingsApp(): React.JSX.Element {
                             onChange={toggleAutoClearOnTimeout}
                         />
                         <span className="fake-checkbox" aria-hidden></span>
-                        <span className="column-label">Clear data on inactivity timeout</span>
+                        <span className="column-label">{t("ui.settings.labels.clearOnTimeout")}</span>
                     </label>
                     <p className="settings-description">
-                        Automatically clears DPS statistics after a period of combat inactivity.
+                        {t("ui.settings.descriptions.clearOnTimeout")}
                     </p>
                     {autoClearOnTimeout && (
                         <div className="settings-input-row">
-                            <label className="settings-input-label">Timeout duration (seconds):</label>
+                            <label className="settings-input-label">{t("ui.settings.labels.timeoutDuration")}</label>
                             <input
                                 type="number"
                                 min="1"
@@ -412,10 +332,68 @@ export default function SettingsApp(): React.JSX.Element {
                             />
                         </div>
                     )}
+
+                    <label className="column-item settings-row mt-2">
+                        <input
+                            type="checkbox"
+                            checked={disableTransparency}
+                            onChange={toggleDisableTransparency}
+                        />
+                        <span className="fake-checkbox" aria-hidden></span>
+                        <span className="column-label">{t("ui.settings.labels.disableTransparency")}</span>
+                    </label>
+                    <p className="settings-description">
+                        {t("ui.settings.descriptions.disableTransparency", "Disables transparent window background to reduce GPU load. Requires application restart to take effect. Recommended for best performance.")}
+                    </p>
+
+                    <label className="column-item settings-row">
+                        <input
+                            type="checkbox"
+                            checked={enableManualHeight}
+                            onChange={(e) => {
+                                const checked = e.target.checked;
+                                setEnableManualHeight(checked);
+                                storage.setItem("enableManualHeight", checked);
+                                window.electronAPI.updateGlobalSettings?.({ enableManualHeight: checked });
+                            }}
+                        />
+                        <span className="fake-checkbox" aria-hidden></span>
+                        <span className="column-label">{t("ui.settings.labels.enableManualHeight", "Enable manual height adjustment")}</span>
+                    </label>
+                    <p className="settings-description">
+                        {t("ui.settings.descriptions.enableManualHeight")}
+                    </p>
+                    {enableManualHeight && (
+                        <>
+                            <div className="settings-input-row mt-2">
+                                <label className="settings-input-label">{t("ui.settings.labels.heightAdjustmentStep")}</label>
+                                <input
+                                    type="number"
+                                    min="10"
+                                    max="200"
+                                    step="10"
+                                    value={heightStep}
+                                    disabled={!enableManualHeight}
+                                    onChange={(e) => {
+                                        const value = parseInt(e.target.value, 10);
+                                        if (!isNaN(value) && value > 0) {
+                                            setHeightStep(value);
+                                            storage.setItem("heightStep", value);
+                                            window.electronAPI.updateGlobalSettings?.({ heightStep: value });
+                                        }
+                                    }}
+                                    className="settings-number-input"
+                                />
+                            </div>
+                            <p className="settings-description">
+                                {t("ui.settings.descriptions.heightAdjustmentStep")}
+                            </p>
+                        </>
+                    )}
                 </div>
 
                 <div className="settings-columns mt-4">
-                    <h3 className="settings-section-title">Performance Options</h3>
+                    <h3 className="settings-section-title">{t("ui.settings.sections.performanceOptions")}</h3>
                     <label className="column-item settings-row">
                         <input
                             type="checkbox"
@@ -423,15 +401,15 @@ export default function SettingsApp(): React.JSX.Element {
                             onChange={togglePerformanceMode}
                         />
                         <span className="fake-checkbox" aria-hidden></span>
-                        <span className="column-label">Performance mode (reduce CPU/GPU usage)</span>
+                        <span className="column-label">{t("ui.settings.labels.performanceMode")}</span>
                     </label>
                     <p className="settings-description">
-                        Reduces update frequency to 250ms (from 100ms) to improve FPS. Recommended if experiencing frame drops.
+                        {t("ui.settings.descriptions.performanceMode")}
                     </p>
                     {!performanceMode && (
                         <>
                             <div className="settings-input-row">
-                                <label className="settings-input-label">Update interval (ms):</label>
+                                <label className="settings-input-label">{t("ui.settings.labels.updateInterval")}</label>
                                 <input
                                     type="number"
                                     min="50"
@@ -443,63 +421,20 @@ export default function SettingsApp(): React.JSX.Element {
                                 />
                             </div>
                             <p className="settings-description">
-                                How often the DPS meter updates. Higher values = better performance but less responsive. Default: 100ms
+                                {t("ui.settings.descriptions.updateInterval")}
                             </p>
                         </>
                     )}
-                    <label className="column-item settings-row mt-2">
-                        <input
-                            type="checkbox"
-                            checked={disableTransparency}
-                            onChange={toggleDisableTransparency}
-                        />
-                        <span className="fake-checkbox" aria-hidden></span>
-                        <span className="column-label">Disable window transparency</span>
-                    </label>
-                    <p className="settings-description">
-                        Disables transparent window background to reduce GPU load. Requires application restart to take effect. Recommended for best performance.
-                    </p>
-
-                    <div className="settings-input-row mt-2">
-                        <label className="settings-input-label">Height adjustment step (px):</label>
-                        <input
-                            type="number"
-                            min="10"
-                            max="200"
-                            step="10"
-                            value={heightStep}
-                            onChange={(e) => {
-                                const value = parseInt(e.target.value, 10);
-                                if (!isNaN(value) && value > 0) {
-                                    setHeightStep(value);
-                                    try {
-                                        localStorage.setItem("heightStep", String(value));
-                                    } catch (err) {
-                                        console.warn("Failed to persist heightStep to localStorage", err);
-                                    }
-                                    try {
-                                        window.electronAPI.updateGlobalSettings?.({ heightStep: value });
-                                    } catch (err) {
-                                        console.warn("Failed to notify main process of heightStep change", err);
-                                    }
-                                }
-                            }}
-                            className="settings-number-input"
-                        />
-                    </div>
-                    <p className="settings-description">
-                        How many pixels the window height increases or decreases when using the height adjustment buttons. Default: 20px
-                    </p>
                 </div>
 
                 <div className="settings-columns mt-4">
-                    <h3 className="settings-section-title">Updates</h3>
-                    <button 
-                        className="control-button" 
+                    <h3 className="settings-section-title">{t("ui.settings.sections.updates")}</h3>
+                    <button
+                        className="control-button"
                         onClick={handleCheckForUpdates}
                         disabled={checkingUpdate}
-                        style={{ 
-                            padding: "8px 16px", 
+                        style={{
+                            padding: "8px 16px",
                             width: "100%",
                             backgroundColor: "var(--bg-secondary)",
                             cursor: checkingUpdate ? "wait" : "pointer"
@@ -508,17 +443,17 @@ export default function SettingsApp(): React.JSX.Element {
                         {checkingUpdate ? (
                             <>
                                 <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: "8px" }}></i>
-                                Checking for updates...
+                                {t("ui.settings.labels.checkingForUpdates", "Checking for updates...")}
                             </>
                         ) : (
                             <>
                                 <i className="fa-solid fa-download" style={{ marginRight: "8px" }}></i>
-                                Check for Updates
+                                {t("ui.settings.labels.checkForUpdates")}
                             </>
                         )}
                     </button>
                     <p className="settings-description">
-                        Check if a new version of BPSR Meter is available on GitHub. Updates are automatically checked on startup.
+                        {t("ui.settings.descriptions.checkForUpdates")}
                     </p>
                 </div>
             </div>

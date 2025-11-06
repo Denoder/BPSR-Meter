@@ -90,6 +90,8 @@ export interface GlobalSettings {
     lastPausedAt?: number | null;
     lastResumedAt?: number | null;
     enableBPTimerSubmission?: boolean;
+    enableManualHeight?: boolean;
+    heightStep?: number;
     performanceMode?: boolean;
     updateIntervalMs?: number;
     disableTransparency?: boolean;
@@ -142,10 +144,11 @@ export interface NetworkDevice {
 }
 
 export interface Logger {
-    info(message: string, ...args: any[]): void;
-    warn(message: string, ...args: any[]): void;
-    error(message: string, ...args: any[]): void;
-    debug(message: string, ...args: any[]): void;
+    info(...args: any[]): void;
+    warn(...args: any[]): void;
+    error(...args: any[]): void;
+    debug(...args: any[]): void;
+    setLevel?(level: string | string[]): void;
 }
 
 export interface SocketEvents {

@@ -46,6 +46,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
         ipcRenderer.on("height-step-changed", listener);
         return () => ipcRenderer.removeListener("height-step-changed", listener);
     },
+    onManualHeightChanged: (callback: (enabled: boolean) => void) => {
+        const listener = (_e: IpcRendererEvent, enabled: boolean) => callback(enabled);
+        ipcRenderer.on("manual-height-changed", listener);
+        return () => ipcRenderer.removeListener("manual-height-changed", listener);
+    },
     deleteHistoryLog: (logId: string) => ipcRenderer.invoke("delete-history-log", logId),
     checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
     checkForUpdatesWithDialog: () => ipcRenderer.invoke("check-for-updates-with-dialog"),

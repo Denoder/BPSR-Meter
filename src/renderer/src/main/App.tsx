@@ -20,6 +20,7 @@ export function MainApp(): React.JSX.Element {
     const [skillsScope, setSkillsScope] = useState<"solo" | "nearby">("nearby");
     const [customMinHeight, setCustomMinHeight] = useState<number>(0);
     const [heightStep, setHeightStep] = useState<number>(20);
+    const [enableManualHeight, setEnableManualHeight] = useState<boolean>(false);
     const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
         dps: true,
         hps: true,
@@ -69,6 +70,15 @@ export function MainApp(): React.JSX.Element {
             }
         } catch (err) {
             console.warn("Failed to load heightStep from localStorage", err);
+        }
+
+        try {
+            const manualHeightSetting = localStorage.getItem("enableManualHeight");
+            if (manualHeightSetting !== null) {
+                setEnableManualHeight(manualHeightSetting === "true");
+            }
+        } catch (err) {
+            console.warn("Failed to load enableManualHeight from localStorage", err);
         }
     }, []);
 
@@ -120,6 +130,22 @@ export function MainApp(): React.JSX.Element {
             return unsubscribe;
         } catch (err) {
             console.warn("Failed to setup heightStep listener", err);
+        }
+    }, []);
+
+    useEffect(() => {
+        try {
+            const unsubscribe = window.electronAPI.onManualHeightChanged?.((enabled: boolean) => {
+                setEnableManualHeight(enabled);
+                try {
+                    localStorage.setItem("enableManualHeight", String(enabled));
+                } catch (e) {
+                    console.warn("Failed to persist enableManualHeight from IPC", e);
+                }
+            });
+            return unsubscribe;
+        } catch (err) {
+            console.warn("Failed to setup manualHeight listener", err);
         }
     }, []);
 
@@ -319,7 +345,10 @@ export function MainApp(): React.JSX.Element {
     return (
         <div
             className={`dps-meter ${isLocked ? "locked" : ""}`}
-            style={customMinHeight > 0 ? { minHeight: `${customMinHeight}px`, height: `${customMinHeight}px` } : undefined}
+            style={enableManualHeight && customMinHeight > 0 && viewMode !== 'solo' && skillsScope !== 'solo' ? 
+                { minHeight: `${customMinHeight}px`, height: `${customMinHeight}px` } : 
+                { minHeight: "fit-content", height: "fit-content" }
+            }
             onMouseOver={handleMouseOver}
             onMouseOut={handleMouseOut}
             onMouseLeave={handleMouseLeave}
@@ -349,8 +378,8 @@ export function MainApp(): React.JSX.Element {
                 onOpenMonsters={handleOpenMonsters}
                 onZoomIn={zoomIn}
                 onZoomOut={zoomOut}
-                onIncreaseHeight={handleIncreaseHeight}
-                onDecreaseHeight={handleDecreaseHeight}
+                onIncreaseHeight={enableManualHeight ? handleIncreaseHeight : undefined}
+                onDecreaseHeight={enableManualHeight ? handleDecreaseHeight : undefined}
                 heightStep={heightStep}
                 onHeightStepChange={(step: number) => {
                     setHeightStep(step);

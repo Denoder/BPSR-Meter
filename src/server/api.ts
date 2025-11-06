@@ -7,6 +7,8 @@ import { Server as SocketIOServer } from "socket.io";
 import cap from "cap";
 import type { Logger, GlobalSettings, ApiResponse, PlayerRegistry } from "../types/index";
 import type { UserDataManager } from "./dataManager";
+import { reloadSkillTranslations } from "./dataManager";
+import { reloadMonsterTranslations } from "../../algo/packet";
 import Sniffer from "./sniffer";
 
 // Use user data path in production, current directory in development
@@ -75,7 +77,7 @@ function initializeApi(
 
     app.get("/api/clear", async (req: Request, res: Response) => {
         await userDataManager.clearAll();
-        console.log("Statistics cleared!");
+        logger.info("Statistics cleared!");
         res.json({
             code: 0,
             msg: "Statistics cleared!",
@@ -84,7 +86,7 @@ function initializeApi(
 
     app.get("/api/reset", async (req: Request, res: Response) => {
         await userDataManager.resetStatistics();
-        console.log("Statistics reset (keeping player info)!");
+        logger.info("Statistics reset (keeping player info)!");
         res.json({
             code: 0,
             msg: "Statistics reset!",
@@ -100,7 +102,7 @@ function initializeApi(
         } else {
             globalSettings.lastResumedAt = now;
         }
-        console.log(
+        logger.info(
             `Statistics ${globalSettings.isPaused ? "paused" : "resumed"}!`,
         );
 
@@ -112,7 +114,7 @@ function initializeApi(
                     "utf8",
                 );
             } catch (err) {
-                console.error(
+                logger.error(
                     "Failed to persist settings after pause toggle:",
                     err,
                 );
@@ -141,7 +143,7 @@ function initializeApi(
             const userId = parseInt(uid, 10);
             if (!isNaN(userId)) {
                 userDataManager.setName(userId, name);
-                console.log(
+                logger.info(
                     `Manually assigned name '${name}' to UID ${userId}`,
                 );
                 res.json({ code: 0, msg: "Username updated successfully." });
@@ -450,11 +452,26 @@ function initializeApi(
         }
 
         globalSettings.language = language;
+        
+        // Reload translations
+        try {
+            reloadSkillTranslations(language);
+            reloadMonsterTranslations(language);
+        } catch (error) {
+            logger.error(`Failed to reload translations for language ${language}:`, error);
+            return res.status(500).json({
+                code: 1,
+                msg: "Failed to reload translations",
+            });
+        }
+        
         await fsPromises.writeFile(
             SETTINGS_PATH,
             JSON.stringify(globalSettings, null, 4),
             "utf8",
         );
+
+        io.emit("languageChanged", { language });
 
         res.json({
             code: 0,
@@ -531,7 +548,7 @@ function initializeApi(
             "utf8",
         );
 
-        console.log(`Added player ${name || uid} to manual group`);
+        logger.info(`Added player ${name || uid} to manual group`);
 
         res.json({
             code: 0,
@@ -566,7 +583,7 @@ function initializeApi(
                 "utf8",
             );
 
-            console.log(`Removed player ${uid} from manual group`);
+            logger.info(`Removed player ${uid} from manual group`);
 
             res.json({
                 code: 0,
@@ -590,7 +607,7 @@ function initializeApi(
             "utf8",
         );
 
-        console.log("Cleared manual group members");
+        logger.info("Cleared manual group members");
 
         res.json({
             code: 0,
@@ -634,7 +651,7 @@ function initializeApi(
                 "utf8",
             );
 
-            console.log(`Saved player: ${uid} -> ${name}`);
+            logger.info(`Saved player: ${uid} -> ${name}`);
 
             res.json({
                 code: 0,
@@ -666,7 +683,7 @@ function initializeApi(
                 "utf8",
             );
 
-            console.log(`Deleted player: ${uid}`);
+            logger.info(`Deleted player: ${uid}`);
 
             res.json({
                 code: 0,
@@ -696,7 +713,7 @@ function initializeApi(
                         playerRegistry[uidStr] &&
                         playerRegistry[uidStr].name !== player.name
                     ) {
-                        console.log(
+                        logger.info(
                             `Auto-updated player name: ${uid} from "${playerRegistry[uidStr].name}" to "${player.name}"`,
                         );
                         playerRegistry[uidStr].name = player.name;
@@ -721,7 +738,7 @@ function initializeApi(
     );
 
     io.on("connection", (socket) => {
-        console.log("WebSocket client connected: " + socket.id);
+        logger.info("WebSocket client connected: " + socket.id);
 
         // Handle client requests via Socket.IO
         socket.on("getPlayerData", (callback) => {
@@ -783,7 +800,7 @@ function initializeApi(
 
         socket.on("resetStatistics", async (callback) => {
             await userDataManager.resetStatistics();
-            console.log("Statistics reset (keeping player info)!");
+            logger.info("Statistics reset (keeping player info)!");
             callback({ code: 0, msg: "Statistics reset!" });
         });
 
@@ -796,7 +813,7 @@ function initializeApi(
             } else {
                 globalSettings.lastResumedAt = now;
             }
-            console.log(
+            logger.info(
                 `Statistics ${globalSettings.isPaused ? "paused" : "resumed"}!`,
             );
 
@@ -807,7 +824,7 @@ function initializeApi(
                     "utf8",
                 );
             } catch (err) {
-                console.error(
+                logger.error(
                     "Failed to persist settings after pause toggle:",
                     err,
                 );
@@ -844,11 +861,28 @@ function initializeApi(
             }
 
             globalSettings.language = language;
+            
+            // Reload translations
+            try {
+                reloadSkillTranslations(language);
+                reloadMonsterTranslations(language);
+            } catch (error) {
+                logger.error(`Failed to reload translations for language ${language}:`, error);
+                callback({
+                    code: 1,
+                    msg: "Failed to reload translations",
+                });
+                return;
+            }
+            
             await fsPromises.writeFile(
                 SETTINGS_PATH,
                 JSON.stringify(globalSettings, null, 4),
                 "utf8",
             );
+
+            // Broadcast language change to all connected clients
+            io.emit("languageChanged", { language });
 
             callback({
                 code: 0,
@@ -902,7 +936,7 @@ function initializeApi(
                 "utf8",
             );
 
-            console.log("Cleared manual group members");
+            logger.info("Cleared manual group members");
 
             callback({
                 code: 0,
@@ -938,7 +972,7 @@ function initializeApi(
                 "utf8",
             );
 
-            console.log(`Saved player: ${uuid} -> ${name}`);
+            logger.info(`Saved player: ${uuid} -> ${name}`);
 
             callback({
                 code: 0,
@@ -964,7 +998,7 @@ function initializeApi(
                 "utf8",
             );
 
-            console.log(`Deleted player: ${uid}`);
+            logger.debug(`Deleted player: ${uid}`);
 
             callback({
                 code: 0,
@@ -973,7 +1007,7 @@ function initializeApi(
         });
 
         socket.on("disconnect", () => {
-            console.log("WebSocket client disconnected: " + socket.id);
+            logger.info("WebSocket client disconnected: " + socket.id);
         });
     });
 

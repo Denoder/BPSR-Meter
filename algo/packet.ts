@@ -2,10 +2,22 @@ import zlib from 'zlib';
 import Long from 'long';
 import pbjs from 'protobufjs/minimal.js';
 import fs from 'fs';
+import path from 'path';
 import pb from './blueprotobuf-esm';
-import type { Logger } from 'winston';
+import type { Logger } from '../src/types';
 import type { UserDataManager } from '../src/server/dataManager';
 import { initialize, TRACKED_MONSTER_IDS } from '../src/utils/bpTimer';
+
+const TRANSLATIONS_DIR = path.join(__dirname, "../main/translations");
+let monsterNames: Record<string, string> = JSON.parse(fs.readFileSync(path.join(TRANSLATIONS_DIR, "en.json"), "utf-8")).monsters;
+
+export function reloadMonsterTranslations(language: string): void {
+    monsterNames = JSON.parse(fs.readFileSync(path.join(TRANSLATIONS_DIR, `${language}.json`), "utf-8")).monsters;
+}
+
+export function getMonsterNames(): Record<string, string> {
+    return monsterNames;
+}
 
 class BinaryReader {
     public buffer: Buffer;
@@ -288,25 +300,10 @@ class PacketProcessor {
         if (attrCollection && attrCollection.Attrs) {
             if (isTargetPlayer) {
                 this.#processPlayerAttrs(targetUuid.toNumber(), attrCollection.Attrs);
+                this.#processPositionAttrs(targetUuid.toNumber(), 'player', attrCollection.Attrs);
             } else if (isTargetMonster) {
                 this.#processEnemyAttrs(targetUuid.toNumber(), attrCollection.Attrs);
-            }
-
-            for (const attr of attrCollection.Attrs) {
-                if ((attr.Id === 52 || attr.Id === 53) && attr.RawData) {
-                    try {
-                        const position = pb.Position.decode(attr.RawData);
-                        const x = position.X ?? 0;
-                        const y = position.Y ?? 0;
-                        const z = position.Z ?? 0;
-
-                        if (isTargetMonster) {
-                            this.userDataManager.enemyCache.position.set(targetUuid.toNumber(), { x, y, z });
-                        } else if (isTargetPlayer && targetUuid.toNumber() === this.userDataManager.localPlayerUid) {
-                            this.userDataManager.setLocalPlayerPosition({ x, y, z });
-                        }
-                    } catch (e) {}
-                }
+                this.#processPositionAttrs(targetUuid.toNumber(), 'monster', attrCollection.Attrs);
             }
         }
 
@@ -393,16 +390,30 @@ class PacketProcessor {
                     }
 
                     if (isDead) {
-                        const enemyUid = `${targetUuid.toNumber()}`;
+                        const enemyUid = targetUuid.toNumber();
                         const monsterId = this.userDataManager.enemyCache.monsterId.get(enemyUid);
-                        if (monsterId && TRACKED_MONSTER_IDS.has(String(monsterId))) {
-                            if (this.userDataManager.globalSettings.enableBPTimerSubmission !== false) {
-                                const line = this.userDataManager.getCurrentLineId();
-                                const bpTimer = initialize(this.logger, this.userDataManager.globalSettings);
-                                setTimeout(() => {
-                                    bpTimer.resetMonster(monsterId, line);
-                                    this.logger.debug(`[BPTimer] Reset tracking for monster ${monsterId} on line ${line} (isDead flag)`);
-                                }, 3000);
+                        const monsterName = this.userDataManager.enemyCache.name.get(enemyUid);
+
+                        if (!this.userDataManager.enemyCache.isDead.get(enemyUid)) {
+                            this.userDataManager.enemyCache.isDead.set(enemyUid, true);
+                            this.userDataManager.enemyCache.hp.set(enemyUid, 0);
+
+                            if (monsterId && TRACKED_MONSTER_IDS.has(String(monsterId))) {
+                                this.logger.debug(`[BPTimer] Tracked boss ${monsterName || 'Unknown'} [ID: ${monsterId}] (${enemyUid}) died on line ${this.userDataManager.getCurrentLineId()}`);
+
+                                if (this.userDataManager.globalSettings.enableBPTimerSubmission !== false) {
+                                    const line = this.userDataManager.getCurrentLineId();
+                                    const bpTimer = initialize(this.logger, this.userDataManager.globalSettings);
+
+                                    bpTimer.createHpReport(monsterId, 0, line).catch(err => {
+                                        this.logger.error(`[BPTimer] Failed to report death: ${err.message}`);
+                                    });
+
+                                    setTimeout(() => {
+                                        bpTimer.resetMonster(monsterId, line);
+                                        this.logger.debug(`[BPTimer] Reset tracking for monster ${monsterId} on line ${line} (isDead flag)`);
+                                    }, 3000);
+                                }
                             }
                         }
                     }
@@ -457,7 +468,7 @@ class PacketProcessor {
                 `EXT: ${extra.join('|')}`,
             ];
             const dmgLog = dmgLogArr.join(' ');
-            this.logger.info(dmgLog);
+            this.logger.debug(dmgLog);
             this.userDataManager.addLog(dmgLog);
         }
     }
@@ -626,6 +637,31 @@ class PacketProcessor {
         // this.logger.debug(syncContainerDirtyData.VData.Buffer.toString('hex'));
     }
 
+    #processPositionAttrs(targetUID: number, targetType: 'monster' | 'player', attrs: any[]) {
+        for (const attr of attrs) {
+            if (!attr.Id || !attr.RawData) continue;
+
+            switch (attr.Id) {
+                case 52: // X
+                case 53: // Y
+                case 54: // Z
+                    const position = pb.Position.decode(attr.RawData);
+                    const x = position.X ?? 0;
+                    const y = position.Y ?? 0;
+                    const z = position.Z ?? 0;
+
+                    if (targetType === 'monster') {
+                        this.userDataManager.enemyCache.position.set(targetUID, { x, y, z });
+                    } else if (targetType === 'player' && targetUID === this.userDataManager.localPlayerUid) {
+                        this.userDataManager.setLocalPlayerPosition({ x, y, z });
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
     #processPlayerAttrs(playerUid: number, attrs: any[]) {
         for (const attr of attrs) {
             if (!attr.Id || !attr.RawData) continue;
@@ -694,25 +730,35 @@ class PacketProcessor {
         for (const attr of attrs) {
             if (!attr.Id || !attr.RawData) continue;
             const reader = pbjs.Reader.create(attr.RawData);
-            const base64Data = attr.RawData.toString('base64');
 
             switch (attr.Id) {
                 case AttrType.AttrName:
                     const enemyName = reader.string();
                     this.userDataManager.enemyCache.name.set(enemyUid, enemyName);
                     this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
-                    this.logger.info(`Found monster name ${enemyName} for id ${enemyUid}`);
+                    this.logger.debug(`Found monster name ${enemyName} for id ${enemyUid}`);
                     break;
                 case AttrType.AttrId:
                     const attrId = reader.int32();
-                    this.logger.info(`Found monster attrId ${attrId} for id ${enemyUid}`);
+                    this.logger.debug(`Found monster attrId ${attrId} for id ${enemyUid}`);
                     this.userDataManager.enemyCache.monsterId.set(enemyUid, attrId);
                     this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
+
+                    const translatedName = monsterNames[String(attrId)];
+                    if (translatedName && !this.userDataManager.enemyCache.name.has(enemyUid)) {
+                        this.userDataManager.enemyCache.name.set(enemyUid, translatedName);
+                        this.logger.debug(`Set monster name from translation: ${translatedName} for id ${enemyUid}`);
+                    }
                     break;
                 case AttrType.AttrHp:
                     const enemyHp = reader.int32();
                     this.userDataManager.enemyCache.hp.set(enemyUid, enemyHp);
                     this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
+
+                    if (enemyHp > 0 && this.userDataManager.enemyCache.isDead.get(enemyUid)) {
+                        this.userDataManager.enemyCache.isDead.delete(enemyUid);
+                    }
+
                     this.#reportBossHpThreshold(enemyUid, enemyHp);
                     break;
                 case AttrType.AttrMaxHp:
@@ -733,6 +779,11 @@ class PacketProcessor {
                 return;
             }
 
+            // Don't report if monster is already marked as dead
+            if (this.userDataManager.enemyCache.isDead.get(enemyUid)) {
+                return;
+            }
+
             const monsterId = this.userDataManager.enemyCache.monsterId.get(enemyUid);
             const maxHp = this.userDataManager.enemyCache.maxHp.get(enemyUid);
 
@@ -744,12 +795,23 @@ class PacketProcessor {
                 return;
             }
 
+            // If HP reaches 0 but isDead wasn't set yet, report it here as fallback
             if (currentHp === 0 || currentHp <= maxHp * 0.001) {
                 const line = this.userDataManager.getCurrentLineId();
                 const bpTimer = initialize(this.logger, this.userDataManager.globalSettings);
+                
+                // Report 0% HP (death) as fallback
+                bpTimer.createHpReport(monsterId, 0, line).catch(err => {
+                    this.logger.debug(`[BPTimer] Failed to report death (fallback): ${err.message}`);
+                });
+                
+                // Mark as dead to prevent duplicate reports
+                this.userDataManager.enemyCache.isDead.set(enemyUid, true);
+                
+                // Reset tracking after reporting death
                 setTimeout(() => {
                     bpTimer.resetMonster(monsterId, line);
-                    this.logger.debug(`[BPTimer] Reset tracking for monster ${monsterId} on line ${line} (HP reached 0)`);
+                    this.logger.debug(`[BPTimer] Reset tracking for monster ${monsterId} on line ${line} (HP reached 0 fallback)`);
                 }, 3000);
                 return;
             }

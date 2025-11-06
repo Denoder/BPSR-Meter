@@ -72,6 +72,7 @@ A DPS meter for Blue Protocol built with Electron, React 19, and TypeScript. Thi
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start development mode with hot reload |
+| `npm run dev:windows` | Start development with hot reload - and utf8 output |
 | `npm run build` | Build renderer and main process |
 | `npm run build:server` | Build standalone server |
 | `npm run build:all` | Build everything |

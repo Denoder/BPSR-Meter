@@ -4,7 +4,7 @@ import findDefaultNetworkDevice from "../../algo/netInterfaceUtil";
 import WindivertAdapter from "./windivert-adapter";
 import { Lock } from "./dataManager";
 import type { UserDataManager } from "./dataManager";
-import type { Logger } from "winston";
+import type { Logger } from "../types";
 import type { GlobalSettings } from "../types";
 import type PacketProcessor from "../../algo/packet";
 
@@ -27,25 +27,25 @@ async function checkNpcap(logger: Logger) {
 
 class Sniffer {
     #data: Buffer;
-    public logger: Logger;
-    public userDataManager: UserDataManager;
-    public globalSettings: GlobalSettings;
-    public current_server: string;
-    public tcp_next_seq: number;
-    public tcp_cache: Map<number, Buffer>;
-    public tcp_last_time: number;
-    public lastUnexpectedSeqLogAt: number;
-    public unexpectedSeqCount: number;
-    public tcp_lock: Lock;
-    public fragmentIpCache: Map<string, any>;
-    public FRAGMENT_TIMEOUT: number;
-    public eth_queue: Buffer[];
-    public capInstance: cap.Cap | WindivertAdapter | null;
-    public PacketProcessor: PacketProcessor | null;
-    public isPaused: boolean;
+    logger: Logger;
+    userDataManager: UserDataManager;
+    globalSettings: GlobalSettings;
+    current_server: string;
+    tcp_next_seq: number;
+    tcp_cache: Map<number, Buffer>;
+    tcp_last_time: number;
+    lastUnexpectedSeqLogAt: number;
+    unexpectedSeqCount: number;
+    tcp_lock: Lock;
+    fragmentIpCache: Map<string, any>;
+    FRAGMENT_TIMEOUT: number;
+    eth_queue: Buffer[];
+    capInstance: cap.Cap | WindivertAdapter | null;
+    PacketProcessor: PacketProcessor | null;
+    isPaused: boolean;
     #PacketProcessorInstance?: typeof PacketProcessor;
 
-    public running: boolean;
+    running: boolean;
     #fragmentCleanerInterval: NodeJS.Timeout | null;
 
     constructor(logger: Logger, userDataManager: UserDataManager, globalSettings: GlobalSettings) {
@@ -432,7 +432,7 @@ class Sniffer {
             return "npcap";
         })();
 
-        // Only explicit choices supported: npcap or windivert. No automatic fallback.
+        // Only explicit choices supported: npcap or windivert.
         if (selectedBackend === "npcap") {
             const npcapReady = await checkNpcap(this.logger);
             if (!npcapReady) {

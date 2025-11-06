@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { loadTranslations, t, translateSkill, translateProfession, translateMonsterName } from "../utils/translations";
 import { fetchSettings, changeLanguage as changeLanguageAPI } from "../api";
+import { getSocket } from "./useSocket";
 
 export interface UseTranslationsReturn {
     currentLanguage: string;
@@ -24,31 +25,92 @@ export function useTranslations(): UseTranslationsReturn {
 
     useEffect(() => {
         const initTranslations = async () => {
+            let cachedLang = "en";
             try {
-                const settings = await fetchSettings();
-                const targetLang = settings.language || "en";
-                const translationLoaded = await loadTranslations(targetLang);
+                const stored = localStorage.getItem("appLanguage");
+                if (stored && (stored === "en" || stored === "zh")) {
+                    cachedLang = stored;
+                }
+            } catch (error) {
+                console.warn("Failed to read language from localStorage:", error);
+            }
 
-                if (!translationLoaded) {
-                    console.warn(
-                        "Failed to load translations, falling back to English",
-                    );
-                    await loadTranslations("en");
-                    setCurrentLanguage("en");
-                } else {
-                    setCurrentLanguage(targetLang);
+            await loadTranslations(cachedLang);
+            setCurrentLanguage(cachedLang);
+            setIsLoaded(true);
+            
+            try {
+                let settings = null;
+                let retries = 0;
+                const maxRetries = 10;
+
+                while (!settings && retries < maxRetries) {
+                    try {
+                        settings = await fetchSettings();
+                        if (settings) break;
+                    } catch (error) {
+                        console.log(`Waiting for socket connection... (attempt ${retries + 1}/${maxRetries})`);
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    retries++;
                 }
 
-                setIsLoaded(true);
+                const targetLang = settings?.language || "en";
+
+                try {
+                    localStorage.setItem("appLanguage", targetLang);
+                } catch (error) {
+                    console.warn("Failed to save language to localStorage:", error);
+                }
+
+                if (targetLang !== cachedLang) {
+                    console.log(`Loading translations for language: ${targetLang}`);
+                    const translationLoaded = await loadTranslations(targetLang);
+
+                    if (translationLoaded) {
+                        setCurrentLanguage(targetLang);
+                        setIsLoaded(false);
+                        setTimeout(() => setIsLoaded(true), 0);
+                    } else {
+                        console.warn("Failed to load target language, keeping current language");
+                    }
+                }
             } catch (error) {
-                console.error("Failed to initialize translations:", error);
-                await loadTranslations("en");
-                setCurrentLanguage("en");
-                setIsLoaded(true);
+                console.error("Failed to fetch language settings:", error);
+                // Already have cached language loaded, so just continue
             }
         };
 
         initTranslations();
+    }, []);
+
+    useEffect(() => {
+        const handleLanguageChange = async (data: { language: string }) => {
+            console.log("Language changed by another window:", data.language);
+            const translationLoaded = await loadTranslations(data.language);
+            if (translationLoaded) {
+                setCurrentLanguage(data.language);
+                try {
+                    localStorage.setItem("appLanguage", data.language);
+                } catch (error) {
+                    console.warn("Failed to save language to localStorage:", error);
+                }
+                setIsLoaded(false);
+                setTimeout(() => setIsLoaded(true), 0);
+            }
+        };
+
+        const socket = getSocket();
+        if (socket) {
+            socket.on("languageChanged", handleLanguageChange);
+        }
+
+        return () => {
+            const currentSocket = getSocket();
+            if (currentSocket) {
+                currentSocket.off("languageChanged", handleLanguageChange);
+            }
+        };
     }, []);
 
     const changeLanguage = useCallback(
@@ -58,6 +120,11 @@ export function useTranslations(): UseTranslationsReturn {
                 if (success) {
                     await loadTranslations(lang);
                     setCurrentLanguage(lang);
+                    try {
+                        localStorage.setItem("appLanguage", lang);
+                    } catch (error) {
+                        console.warn("Failed to save language to localStorage:", error);
+                    }
                     return true;
                 }
                 return false;

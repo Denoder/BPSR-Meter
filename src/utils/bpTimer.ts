@@ -1,4 +1,4 @@
-import type { Logger } from 'winston';
+import type { Logger } from '../types/index';
 import { GlobalSettings } from '../types';
 
 // @ts-ignore

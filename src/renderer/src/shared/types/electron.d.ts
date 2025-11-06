@@ -52,6 +52,7 @@ export interface ElectronAPI {
     updateGlobalSettings?: (settings: Partial<Record<string, any>>) => void;
     onTransparencySettingChanged?: (callback: (isDisabled: boolean) => void) => () => void;
     onHeightStepChanged?: (callback: (step: number) => void) => () => void;
+    onManualHeightChanged?: (callback: (enabled: boolean) => void) => () => void;
     deleteHistoryLog?: (logId: string) => Promise<{ success: boolean; error?: string }>;
     checkForUpdates?: () => Promise<UpdateInfo>;
     checkForUpdatesWithDialog?: () => Promise<UpdateInfo>;

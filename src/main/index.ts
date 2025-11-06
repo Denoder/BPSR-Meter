@@ -71,7 +71,6 @@ function rotateLogFile(logPath: string): void {
 }
 
 function logToFile(msg: string): void {
-    const timestamp = new Date().toISOString();
     const logPath = path.join(userDataPath, "information_log.txt");
 
     try {
@@ -84,7 +83,10 @@ function logToFile(msg: string): void {
             }
         }
 
-        fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`);
+        // eslint-disable-next-line no-control-regex
+        const cleanMsg = msg.replace(/\x1b\[[0-9;]*m/g, '');
+
+        fs.appendFileSync(logPath, `${cleanMsg}\n`, { encoding: "utf8" });
     } catch (e) {
         console.error("Log failed:", e);
     }
@@ -374,6 +376,12 @@ function setupIpcHandlers() {
                     windows.main.webContents.send("height-step-changed", settings.heightStep);
                 }
             }
+
+            if (settings.hasOwnProperty("enableManualHeight")) {
+                if (windows.main && !windows.main.isDestroyed()) {
+                    windows.main.webContents.send("manual-height-changed", settings.enableManualHeight);
+                }
+            }
         } catch (error) {
             logToFile(`Error updating global settings: ${error}`);
         }
@@ -469,18 +477,27 @@ function startServer(): Promise<void> {
         const serverPath = path.join(__dirname, "../../out/main/server.js");
         logToFile(`Launching server on port ${serverPort} from: ${serverPath}`);
 
+        const env = {
+            ...process.env,
+            resourcesPath: process.resourcesPath,
+            USER_DATA_PATH: userDataPath
+        };
+
         serverProcess = fork(serverPath, [serverPort.toString()], {
             stdio: ["pipe", "pipe", "pipe", "ipc"],
-            env: { ...process.env, resourcesPath: process.resourcesPath, USER_DATA_PATH: userDataPath }
+            env: env
         });
 
         const timeout = setTimeout(() => {
             reject(new Error("Server did not respond in time (10s timeout)"));
         }, 10000);
 
-        serverProcess.stdout?.on("data", (data: Buffer) => {
-            const output = data.toString().trim();
-            logToFile(`SERVER: ${output}`);
+        serverProcess.stdout?.setEncoding('utf8');
+        serverProcess.stderr?.setEncoding('utf8');
+
+        serverProcess.stdout?.on("data", (data: any) => {
+            const output = typeof data === 'string' ? data.trim() : data.toString().trim();
+            logToFile(`${output}`);
 
             const match = output.match(/Web server started at (http:\/\/localhost:\d+)/);
             if (match && windows.main) {
@@ -490,8 +507,9 @@ function startServer(): Promise<void> {
             }
         });
 
-        serverProcess.stderr?.on("data", (data: Buffer) => {
-            logToFile(`SERVER ERROR: ${data.toString().trim()}`);
+        serverProcess.stderr?.on("data", (data: any) => {
+            const output = typeof data === 'string' ? data.trim() : data.toString().trim();
+            logToFile(`SERVER ERROR: ${output}`);
         });
 
         serverProcess.on("error", reject);

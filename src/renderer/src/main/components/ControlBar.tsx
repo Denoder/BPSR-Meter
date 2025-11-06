@@ -82,8 +82,6 @@ export function ControlBar({
     onZoomOut,
     onIncreaseHeight,
     onDecreaseHeight,
-    heightStep,
-    onHeightStepChange,
     t,
     startTime,
     players,
@@ -333,38 +331,44 @@ export function ControlBar({
                 </div>
 
                 {/* Height Controls */}
-                <div className="flex gap-1">
-                    <button
-                        id="decrease-height-btn"
-                        className="control-button"
-                        onMouseDown={() => onDecreaseHeight && startHoldAction(onDecreaseHeight)}
-                        onMouseUp={stopHoldAction}
-                        onMouseLeave={stopHoldAction}
-                        title={t("ui.buttons.decreaseHeight", "Decrease Height")}
-                        disabled={isLocked}
-                        style={{
-                            opacity: isLocked ? 0.3 : 1,
-                            cursor: isLocked ? "not-allowed" : "pointer",
-                        }}
-                    >
-                        <i className="fa-solid fa-down-left-and-up-right-to-center"></i>
-                    </button>
-                    <button
-                        id="increase-height-btn"
-                        className="control-button"
-                        onMouseDown={() => onIncreaseHeight && startHoldAction(onIncreaseHeight)}
-                        onMouseUp={stopHoldAction}
-                        onMouseLeave={stopHoldAction}
-                        title={t("ui.buttons.increaseHeight", "Increase Height")}
-                        disabled={isLocked}
-                        style={{
-                            opacity: isLocked ? 0.3 : 1,
-                            cursor: isLocked ? "not-allowed" : "pointer",
-                        }}
-                    >
-                        <i className="fa-solid fa-up-right-and-down-left-from-center"></i>
-                    </button>
-                </div>
+                {(onDecreaseHeight || onIncreaseHeight) && (
+                    <div className="flex gap-1">
+                        {onDecreaseHeight && (
+                            <button
+                                id="decrease-height-btn"
+                                className="control-button"
+                                onMouseDown={() => startHoldAction(onDecreaseHeight)}
+                                onMouseUp={stopHoldAction}
+                                onMouseLeave={stopHoldAction}
+                                title={t("ui.buttons.decreaseHeight", "Decrease Height")}
+                                disabled={isLocked}
+                                style={{
+                                    opacity: isLocked ? 0.3 : 1,
+                                    cursor: isLocked ? "not-allowed" : "pointer",
+                                }}
+                            >
+                                <i className="fa-solid fa-down-left-and-up-right-to-center"></i>
+                            </button>
+                        )}
+                        {onIncreaseHeight && (
+                            <button
+                                id="increase-height-btn"
+                                className="control-button"
+                                onMouseDown={() => startHoldAction(onIncreaseHeight)}
+                                onMouseUp={stopHoldAction}
+                                onMouseLeave={stopHoldAction}
+                                title={t("ui.buttons.increaseHeight", "Increase Height")}
+                                disabled={isLocked}
+                                style={{
+                                    opacity: isLocked ? 0.3 : 1,
+                                    cursor: isLocked ? "not-allowed" : "pointer",
+                                }}
+                            >
+                                <i className="fa-solid fa-up-right-and-down-left-from-center"></i>
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {/* Language Toggle */}
                 <button

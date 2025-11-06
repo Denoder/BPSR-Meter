@@ -5,7 +5,15 @@ import type { Logger, GlobalSettings, SkillConfig } from "../types/index";
 import type { Server as SocketIOServer } from "socket.io";
 
 const TRANSLATIONS_DIR = path.join(__dirname, "translations");
-const skillConfig: SkillConfig = JSON.parse(readFileSync(TRANSLATIONS_DIR + "/zh.json", "utf-8")).skills;
+let skillConfig: SkillConfig = JSON.parse(readFileSync(TRANSLATIONS_DIR + "/en.json", "utf-8")).skills;
+
+export function reloadSkillTranslations(language: string): void {
+    skillConfig = JSON.parse(readFileSync(path.join(TRANSLATIONS_DIR, `${language}.json`), "utf-8")).skills;
+}
+
+export function getSkillConfig(): SkillConfig {
+    return skillConfig;
+}
 
 export class Lock {
     private queue: Array<() => void> = [];
@@ -423,12 +431,13 @@ export class UserData {
 
     getSkillSummary(): SkillSummary {
         const skills: SkillSummary = {};
+        const currentSkillConfig = getSkillConfig();
         for (const [skillId, stat] of this.skillUsage) {
             const critCount = stat.count.critical;
             const luckyCount = stat.count.lucky;
             const critRate = stat.count.total > 0 ? critCount / stat.count.total : 0;
             const luckyRate = stat.count.total > 0 ? luckyCount / stat.count.total : 0;
-            const skillConfigEntry = skillConfig[skillId % 1000000000];
+            const skillConfigEntry = currentSkillConfig[skillId % 1000000000];
             const name = typeof skillConfigEntry === "string" ? skillConfigEntry : (skillConfigEntry?.name ?? skillId % 1000000000);
             const elementype = stat.element;
 
@@ -495,7 +504,8 @@ interface EnemyCache {
     maxHp: Map<string, number>;
     monsterId: Map<string, number>;
     lastSeen: Map<string, number>;
-    position: Map<string, { x: number; y: number; z: number; }>;
+    position: Map<string | number, { x: number; y: number; z: number; }>;
+    isDead: Map<string, boolean>;
 }
 
 interface PlayerPosition {
@@ -544,6 +554,7 @@ export class UserDataManager {
             monsterId: new Map(),
             lastSeen: new Map(),
             position: new Map(),
+            isDead: new Map(),
         };
         this.sceneData = new Map();
         this.localPlayerUid = null;
@@ -695,7 +706,7 @@ export class UserDataManager {
         const user = this.getUser(uid);
         if (user.profession !== profession) {
             user.setProfession(profession);
-            this.logger.info(`Found profession ${profession} for uid ${uid}`);
+            this.logger.debug(`Found profession ${profession} for uid ${uid}`);
         }
     }
 
@@ -703,7 +714,7 @@ export class UserDataManager {
         const user = this.getUser(uid);
         if (user.name !== name) {
             user.setName(name);
-            this.logger.info(`Found player name ${name} for uid ${uid}`);
+            this.logger.debug(`Found player name ${name} for uid ${uid}`);
         }
     }
 
@@ -740,7 +751,7 @@ export class UserDataManager {
         const user = this.getUser(uid);
         if (user.fightPoint != fightPoint) {
             user.setFightPoint(fightPoint);
-            this.logger.info(`Found fight point ${fightPoint} for uid ${uid}`);
+            this.logger.debug(`Found fight point ${fightPoint} for uid ${uid}`);
         }
     }
 
@@ -796,10 +807,57 @@ export class UserDataManager {
             ...this.enemyCache.hp.keys(),
             ...this.enemyCache.maxHp.keys(),
         ]);
-        const now = Date.now();
-        const STALE_MS = 4500;
-        // Exclude companions
-        const EXCLUDED_MONSTER_IDS = new Set([3100000, 3100001, 3100002]);
+
+        // Exclude companions and resonance monsters
+        const EXCLUDED_MONSTER_IDS = new Set([
+            3000000,
+            3000001,
+            3000002,
+            3000003,
+            3000004,
+            3000006,
+            3000007,
+            3000008,
+            3000009,
+            3000010,
+            3000011,
+            3000012,
+            3000013,
+            3000014,
+            3000015,
+            3000016,
+            3000017,
+            3000018,
+            3000019,
+            3000020,
+            3000021,
+            3000022,
+            3000023,
+            3000024,
+            3000025,
+            3000026,
+            3000027,
+            3000028,
+            3000029,
+            3000030,
+            3000031,
+            3000032,
+            3000033,
+            3000034,
+            3000035,
+            3000036,
+            3000037,
+            3000038,
+            3000039,
+            3000040,
+            3000041,
+            3000042,
+            3000043,
+            3000044,
+            3100000, 
+            3100001, 
+            3100002,
+        ]);
 
         enemyIds.forEach((id) => {
             const monsterId = this.enemyCache.monsterId.get(id);
@@ -808,15 +866,11 @@ export class UserDataManager {
                 return;
             }
 
-            const last = this.enemyCache.lastSeen.get(id) || 0;
             let hpVal = this.enemyCache.hp.get(id);
+            const isDead = this.enemyCache.isDead.get(id) || false;
 
-            // if enemy data is stale, and hpVal hasnt been updated set hp to 0 if hp threshhold is less than 10%
-            if (now - last > STALE_MS && hpVal !== undefined && this.enemyCache.maxHp.has(id)) {
-                const maxHpVal = this.enemyCache.maxHp.get(id)!;
-                if (maxHpVal > 0 && (hpVal / maxHpVal) < 0.10) {
-                    hpVal = 0;
-                }
+            if (isDead) {
+                hpVal = 0;
             }
 
             const position = this.enemyCache.position.get(id);
@@ -842,6 +896,7 @@ export class UserDataManager {
         this.enemyCache.monsterId.clear();
         this.enemyCache.lastSeen.clear();
         this.enemyCache.position.clear();
+        this.enemyCache.isDead.clear();
     }
 
     async clearAll(isLineSwitch: boolean = false): Promise<void> {

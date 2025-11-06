@@ -1,4 +1,4 @@
-import winston from "winston";
+import { Logger } from "../utils/logger";
 import readline from "readline";
 import path from "path";
 import { promises as fsPromises } from "fs";
@@ -7,7 +7,8 @@ import http from "http";
 import { Server as SocketIOServer } from "socket.io";
 import zlib from "zlib";
 import type { GlobalSettings, PlayerRegistry } from "../../src/types/index";
-import { UserDataManager } from "../../src/server/dataManager";
+import { UserDataManager, reloadSkillTranslations } from "../../src/server/dataManager";
+import { reloadMonsterTranslations } from "../../algo/packet";
 import Sniffer from "../../src/server/sniffer";
 import initializeApi from "../../src/server/api";
 import PacketProcessor from "../../algo/packet";
@@ -28,6 +29,8 @@ const globalSettings: GlobalSettings = {
     enableFightLog: false,
     enableHistorySave: false,
     enableBPTimerSubmission: true,
+    enableManualHeight: false,
+    heightStep: 20,
     performanceMode: false,
     updateIntervalMs: 100,
     disableTransparency: false,
@@ -53,17 +56,13 @@ interface ErrorWithCode extends Error {
 }
 
 async function main(): Promise<void> {
-    const logger = winston.createLogger({
-        level: "info",
-        format: winston.format.combine(
-            winston.format.colorize({ all: true }),
-            winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-            winston.format.printf((info) => {
-                return `[${info.timestamp}] [${info.level}] ${info.message}`;
-            }),
-        ),
-        transports: [new winston.transports.Console()],
-    });
+    const logger = new Logger();
+
+    if (process.env.NODE_ENV === "development") {
+        logger.setLevel(["info", "error", "warn"]);
+    } else {
+        logger.setLevel(["info", "error", "warn"]);
+    }
 
     console.clear();
     console.log("###################################################");
@@ -103,6 +102,16 @@ async function main(): Promise<void> {
         server_port = 8989;
     }
 
+    // Load translations based on settings
+    try {
+        const language = globalSettings.language || "en";
+        reloadSkillTranslations(language);
+        reloadMonsterTranslations(language);
+        logger.info(`Loaded translations for language: ${language}`);
+    } catch (error) {
+        logger.error("Failed to load translations:", error);
+    }
+
     const app = express();
     const server = http.createServer(app);
     const io = new SocketIOServer(server, {
@@ -137,16 +146,14 @@ async function main(): Promise<void> {
         process.exit(1);
     }
 
-    logger.level = "error";
-
     process.on("SIGINT", async () => {
-        console.log("\nClosing application...");
+        logger.info("\nClosing application...");
         rl.close();
         process.exit(0);
     });
 
     process.on("SIGTERM", async () => {
-        console.log("\nClosing application...");
+        logger.info("\nClosing application...");
         rl.close();
         process.exit(0);
     });
@@ -178,14 +185,14 @@ async function main(): Promise<void> {
 
     server.listen(server_port, "0.0.0.0", () => {
         const localUrl = `http://localhost:${server_port}`;
-        console.log(
+        logger.info(
             `Web server started at ${localUrl}. Access from this PC using ${localUrl}/index.html or from another PC using http://[YOUR_LOCAL_IP]:${server_port}/index.html`,
         );
-        console.log("WebSocket server started");
+        logger.info("WebSocket server started");
     });
 
-    console.log("Welcome to BPSR Meter!");
-    console.log("Detecting game server, please wait...");
+    logger.info("Welcome to BPSR Meter!");
+    logger.info("Detecting game server, please wait...");
 
     // Interval to clean IP and TCP fragment cache
     setInterval(() => {

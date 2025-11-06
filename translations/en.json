@@ -86,6 +86,39 @@
             "availablePlayers": "Available Players",
             "settings": "Settings"
         },
+        "settings": {
+            "sections": {
+                "visibleColumns": "Visible Columns",
+                "bptimerIntegration": "BPTimer Integration",
+                "generalOptions": "General Options",
+                "performanceOptions": "Performance Options",
+                "updates": "Updates"
+            },
+            "labels": {
+                "submitBossData": "Submit boss HP data to BPTimer",
+                "clearOnServerChange": "Clear data on server change",
+                "clearOnTimeout": "Clear data on inactivity timeout",
+                "timeoutDuration": "Timeout duration (seconds):",
+                "disableTransparency": "Disable window transparency",
+                "enableManualHeight": "Enable manual height adjustment",
+                "heightAdjustmentStep": "Height adjustment step (px):",
+                "performanceMode": "Performance mode (reduce CPU/GPU usage)",
+                "updateInterval": "Update interval (ms):",
+                "checkForUpdates": "Check for Updates",
+                "checkingForUpdates": "Checking for updates..."
+            },
+            "descriptions": {
+                "submitBossData": "When enabled, boss HP thresholds are automatically submitted to the BPTimer database to help the community track spawn times.",
+                "clearOnServerChange": "Automatically clears DPS statistics when changing servers or zones.",
+                "clearOnTimeout": "Automatically clears DPS statistics after a period of combat inactivity.",
+                "disableTransparency": "Disables transparent window background to reduce GPU load. Requires application restart to take effect. Recommended for best performance.",
+                "enableManualHeight": "When enabled, use the height adjustment buttons to manually control window height. When disabled, the window height automatically adjusts to fit content.",
+                "heightAdjustmentStep": "How many pixels the window height increases or decreases when using the height adjustment buttons. Only active when manual height adjustment is enabled. Default: 20px",
+                "performanceMode": "Reduces update frequency to 250ms (from 100ms) to improve FPS. Recommended if experiencing frame drops.",
+                "updateInterval": "How often the DPS meter updates. Higher values = better performance but less responsive. Default: 100ms",
+                "checkForUpdates": "Check if a new version of BPSR Meter is available on GitHub. Updates are automatically checked on startup."
+            }
+        },
         "stats": {
             "dps": "DPS",
             "hps": "HPS",
