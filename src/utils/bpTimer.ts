@@ -221,7 +221,6 @@ class BPTimer {
 let bpTimerInstance: BPTimer | null = null;
 
 export function initialize(logger: Logger, globalSettings?: GlobalSettings): BPTimer {
-    console.log('Global Settings in BPTimer initialize:', globalSettings);
     if (!bpTimerInstance) {
         bpTimerInstance = new BPTimer(API_KEY, DB_URL, logger, globalSettings);
     } else if (globalSettings) {

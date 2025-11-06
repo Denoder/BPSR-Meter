@@ -757,6 +757,14 @@ class PacketProcessor {
 
                     if (enemyHp > 0 && this.userDataManager.enemyCache.isDead.get(enemyUid)) {
                         this.userDataManager.enemyCache.isDead.delete(enemyUid);
+
+                        const monsterId = this.userDataManager.enemyCache.monsterId.get(enemyUid);
+                        if (monsterId && TRACKED_MONSTER_IDS.has(String(monsterId))) {
+                            const line = this.userDataManager.getCurrentLineId();
+                            const bpTimer = initialize(this.logger, this.userDataManager.globalSettings);
+                            bpTimer.resetMonster(monsterId, line);
+                            this.logger.debug(`[BPTimer] Reset tracking for respawned monster ${monsterId} on line ${line}`);
+                        }
                     }
 
                     this.#reportBossHpThreshold(enemyUid, enemyHp);
@@ -795,20 +803,16 @@ class PacketProcessor {
                 return;
             }
 
-            // If HP reaches 0 but isDead wasn't set yet, report it here as fallback
             if (currentHp === 0 || currentHp <= maxHp * 0.001) {
                 const line = this.userDataManager.getCurrentLineId();
                 const bpTimer = initialize(this.logger, this.userDataManager.globalSettings);
-                
-                // Report 0% HP (death) as fallback
+
                 bpTimer.createHpReport(monsterId, 0, line).catch(err => {
                     this.logger.debug(`[BPTimer] Failed to report death (fallback): ${err.message}`);
                 });
-                
-                // Mark as dead to prevent duplicate reports
+
                 this.userDataManager.enemyCache.isDead.set(enemyUid, true);
-                
-                // Reset tracking after reporting death
+
                 setTimeout(() => {
                     bpTimer.resetMonster(monsterId, line);
                     this.logger.debug(`[BPTimer] Reset tracking for monster ${monsterId} on line ${line} (HP reached 0 fallback)`);
