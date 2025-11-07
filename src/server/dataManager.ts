@@ -1,6 +1,7 @@
 import { promises as fsPromises } from "fs";
 import path from "path";
 import { readFileSync } from "fs";
+import { EXCLUDED_MONSTER_IDS } from "../utils/monsters";
 import type { Logger, GlobalSettings, SkillConfig } from "../types/index";
 import type { Server as SocketIOServer } from "socket.io";
 
@@ -848,57 +849,6 @@ export class UserDataManager {
             ...this.enemyCache.name.keys(),
             ...this.enemyCache.hp.keys(),
             ...this.enemyCache.maxHp.keys(),
-        ]);
-
-        // Exclude companions and resonance monsters
-        const EXCLUDED_MONSTER_IDS = new Set([
-            3000000,
-            3000001,
-            3000002,
-            3000003,
-            3000004,
-            3000006,
-            3000007,
-            3000008,
-            3000009,
-            3000010,
-            3000011,
-            3000012,
-            3000013,
-            3000014,
-            3000015,
-            3000016,
-            3000017,
-            3000018,
-            3000019,
-            3000020,
-            3000021,
-            3000022,
-            3000023,
-            3000024,
-            3000025,
-            3000026,
-            3000027,
-            3000028,
-            3000029,
-            3000030,
-            3000031,
-            3000032,
-            3000033,
-            3000034,
-            3000035,
-            3000036,
-            3000037,
-            3000038,
-            3000039,
-            3000040,
-            3000041,
-            3000042,
-            3000043,
-            3000044,
-            3100000, 
-            3100001, 
-            3100002,
         ]);
 
         enemyIds.forEach((id) => {
