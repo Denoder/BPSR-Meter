@@ -247,7 +247,8 @@ const isUuidPlayer = (uuid: Long) => {
 };
 
 const isUuidMonster = (uuid: Long) => {
-    return (uuid.toBigInt() & 0xffffn) === 64n;
+    const low = uuid.toBigInt() & 0xffffn;
+    return low === 64n || low === 32832n;
 };
 
 const doesStreamHaveIdentifier = (reader: BinaryReader) => {
@@ -310,6 +311,7 @@ class PacketProcessor {
 
         let targetUuid = aoiSyncDelta.Uuid;
         if (!targetUuid) return;
+        const tgtUuid = targetUuid.toString();
         const isTargetPlayer = isUuidPlayer(targetUuid);
         const isTargetMonster = isUuidMonster(targetUuid);
         targetUuid = targetUuid.shiftRight(16);
@@ -320,8 +322,8 @@ class PacketProcessor {
                 this.#processPlayerAttrs(targetUuid.toNumber(), attrCollection.Attrs);
                 this.#processPositionAttrs(targetUuid.toNumber(), 'player', attrCollection.Attrs);
             } else if (isTargetMonster) {
-                this.#processEnemyAttrs(targetUuid.toNumber(), attrCollection.Attrs);
-                this.#processPositionAttrs(targetUuid.toNumber(), 'monster', attrCollection.Attrs);
+                this.#processEnemyAttrs(tgtUuid, targetUuid.toNumber(), attrCollection.Attrs);
+                this.#processPositionAttrs(tgtUuid, 'monster', attrCollection.Attrs);
             }
         }
 
@@ -337,6 +339,11 @@ class PacketProcessor {
             if (!attackerUuid) continue;
             const isAttackerPlayer = isUuidPlayer(attackerUuid);
             attackerUuid = attackerUuid.shiftRight(16);
+
+            let damageTargetUuid = syncDamageInfo.TargetUuid || Long.fromString(tgtUuid);
+            const tgtUuidStr = damageTargetUuid.toString();
+            const isTargetPlayerDmg = isUuidPlayer(damageTargetUuid);
+            damageTargetUuid = damageTargetUuid.shiftRight(16);
 
             const value = syncDamageInfo.Value;
             const luckyValue = syncDamageInfo.LuckyValue;
@@ -358,7 +365,7 @@ class PacketProcessor {
             const damageElement = getDamageElement(syncDamageInfo.Property);
             const damageSource = syncDamageInfo.DamageSource ?? 0;
 
-            if (isTargetPlayer) {
+            if (isTargetPlayerDmg) {
                 //Player target
                 //玩家目标
                 if (isHeal) {
@@ -372,15 +379,15 @@ class PacketProcessor {
                         isCrit,
                         isLucky,
                         isCauseLucky,
-                        targetUuid.toNumber(),
+                        damageTargetUuid.toNumber(),
                     );
                 } else {
                     //Player received damage
                     //玩家受到伤害
-                    this.userDataManager.addTakenDamage(targetUuid.toNumber(), damage.toNumber(), isDead);
+                    this.userDataManager.addTakenDamage(damageTargetUuid.toNumber(), damage.toNumber(), isDead);
                 }
                 if (isDead) {
-                    this.userDataManager.setAttrKV(targetUuid.toNumber(), 'hp', 0);
+                    this.userDataManager.setAttrKV(damageTargetUuid.toNumber(), 'hp', 0);
                 }
             } else {
                 //Non-player target
@@ -403,17 +410,15 @@ class PacketProcessor {
                             isLucky,
                             isCauseLucky,
                             hpLessenValue.toNumber(),
-                            targetUuid.toNumber(),
+                            tgtUuidStr, // Use UUID string instead of number
                         );
                     }
 
                     if (isDead) {
-                        const enemyUid = targetUuid.toNumber();
-
-                        if (!this.userDataManager.enemyCache.isDead.get(enemyUid)) {
-                            this.userDataManager.enemyCache.isDead.set(enemyUid, true);
-                            this.userDataManager.enemyCache.hp.set(enemyUid, 0);
-                            this.userDataManager.enemyCache.deathTime.set(enemyUid, Date.now());
+                        if (!this.userDataManager.enemyCache.isDead.get(tgtUuidStr)) {
+                            this.userDataManager.enemyCache.isDead.set(tgtUuidStr, true);
+                            this.userDataManager.enemyCache.hp.set(tgtUuidStr, 0);
+                            this.userDataManager.enemyCache.deathTime.set(tgtUuidStr, Date.now());
                         }
                     }
                 }
@@ -636,7 +641,7 @@ class PacketProcessor {
         // this.logger.debug(syncContainerDirtyData.VData.Buffer.toString('hex'));
     }
 
-    #processPositionAttrs(targetUID: number, targetType: 'monster' | 'player', attrs: any[]) {
+    #processPositionAttrs(targetID: number | string, targetType: 'monster' | 'player', attrs: any[]) {
         for (const attr of attrs) {
             if (!attr.Id || !attr.RawData) continue;
 
@@ -650,8 +655,8 @@ class PacketProcessor {
                     const z = position.Z ?? 0;
 
                     if (targetType === 'monster') {
-                        this.userDataManager.enemyCache.position.set(targetUID, { x, y, z });
-                    } else if (targetType === 'player' && targetUID === this.userDataManager.localPlayerUid) {
+                        this.userDataManager.enemyCache.position.set(targetID as string, { x, y, z });
+                    } else if (targetType === 'player' && targetID === this.userDataManager.localPlayerUid) {
                         this.userDataManager.setLocalPlayerPosition({ x, y, z });
                     }
                     break;
@@ -725,7 +730,7 @@ class PacketProcessor {
         }
     }
 
-    #processEnemyAttrs(enemyUid: number, attrs: any[]) {
+    #processEnemyAttrs(enemyUuid: string, enemyUid: number, attrs: any[]) {
         for (const attr of attrs) {
             if (!attr.Id || !attr.RawData) continue;
             const reader = pbjs.Reader.create(attr.RawData);
@@ -733,41 +738,41 @@ class PacketProcessor {
             switch (attr.Id) {
                 case AttrType.AttrName:
                     const enemyName = reader.string();
-                    this.userDataManager.enemyCache.name.set(enemyUid, enemyName);
-                    this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
-                    this.logger.debug(`Found monster name ${enemyName} for id ${enemyUid}`);
+                    this.userDataManager.enemyCache.name.set(enemyUuid, enemyName);
+                    this.userDataManager.enemyCache.lastSeen.set(enemyUuid, Date.now());
+                    this.logger.debug(`Found monster name ${enemyName} for id ${enemyUid} uuid ${enemyUuid}`);
                     break;
                 case AttrType.AttrId:
                     const attrId = reader.int32();
-                    this.logger.debug(`Found monster attrId ${attrId} for id ${enemyUid}`);
-                    this.userDataManager.enemyCache.monsterId.set(enemyUid, attrId);
-                    this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
+                    this.logger.debug(`Found monster attrId ${attrId} for id ${enemyUid} uuid ${enemyUuid}`);
+                    this.userDataManager.enemyCache.monsterId.set(enemyUuid, attrId);
+                    this.userDataManager.enemyCache.lastSeen.set(enemyUuid, Date.now());
 
                     const translatedName = monsterNames[String(attrId)];
-                    if (translatedName && !this.userDataManager.enemyCache.name.has(enemyUid)) {
-                        this.userDataManager.enemyCache.name.set(enemyUid, translatedName);
-                        this.logger.debug(`Set monster name from translation: ${translatedName} for id ${enemyUid}`);
+                    if (translatedName && !this.userDataManager.enemyCache.name.has(enemyUuid)) {
+                        this.userDataManager.enemyCache.name.set(enemyUuid, translatedName);
+                        this.logger.debug(`Set monster name from translation: ${translatedName} for id ${enemyUid} uuid ${enemyUuid}`);
                     }
                     break;
                 case AttrType.AttrHp:
                     const enemyHp = reader.int32();
-                    this.userDataManager.enemyCache.hp.set(enemyUid, enemyHp);
-                    this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
+                    this.userDataManager.enemyCache.hp.set(enemyUuid, enemyHp);
+                    this.userDataManager.enemyCache.lastSeen.set(enemyUuid, Date.now());
 
-                    if (enemyHp > 0 && this.userDataManager.enemyCache.isDead.get(enemyUid)) {
-                        this.userDataManager.enemyCache.isDead.delete(enemyUid);
-                        this.userDataManager.enemyCache.damageDealt.delete(enemyUid);
-                        this.userDataManager.enemyCache.firstHitTime.delete(enemyUid);
-                        this.userDataManager.enemyCache.deathTime.delete(enemyUid);
-                        this.userDataManager.enemyCache.playerDamage.delete(enemyUid);
+                    if (enemyHp > 0 && this.userDataManager.enemyCache.isDead.get(enemyUuid)) {
+                        this.userDataManager.enemyCache.isDead.delete(enemyUuid);
+                        this.userDataManager.enemyCache.damageDealt.delete(enemyUuid);
+                        this.userDataManager.enemyCache.firstHitTime.delete(enemyUuid);
+                        this.userDataManager.enemyCache.deathTime.delete(enemyUuid);
+                        this.userDataManager.enemyCache.playerDamage.delete(enemyUuid);
                     }
 
-                    this.#reportBossHpThreshold(enemyUid, enemyHp);
+                    this.#reportBossHpThreshold(enemyUuid, enemyUid, enemyHp);
                     break;
                 case AttrType.AttrMaxHp:
                     const enemyMaxHp = reader.int32();
-                    this.userDataManager.enemyCache.maxHp.set(enemyUid, enemyMaxHp);
-                    this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
+                    this.userDataManager.enemyCache.maxHp.set(enemyUuid, enemyMaxHp);
+                    this.userDataManager.enemyCache.lastSeen.set(enemyUuid, Date.now());
                     break;
                 default:
                     break;
@@ -775,7 +780,7 @@ class PacketProcessor {
         }
     }
 
-    #reportBossHpThreshold(enemyUid: number, currentHp: number) {
+    #reportBossHpThreshold(enemyUuid: string, enemyUid: number, currentHp: number) {
         try {
             // Check if BPTimer submission is enabled
             if (this.userDataManager.globalSettings?.enableBPTimerSubmission === false) {
@@ -783,22 +788,22 @@ class PacketProcessor {
             }
 
             // Don't report if monster is already marked as dead
-            if (this.userDataManager.enemyCache.isDead.get(enemyUid)) {
+            if (this.userDataManager.enemyCache.isDead.get(enemyUuid)) {
                 return;
             }
 
-            const monsterId = this.userDataManager.enemyCache.monsterId.get(enemyUid);
-            const maxHp = this.userDataManager.enemyCache.maxHp.get(enemyUid);
+            const monsterId = this.userDataManager.enemyCache.monsterId.get(enemyUuid);
+            const maxHp = this.userDataManager.enemyCache.maxHp.get(enemyUuid);
 
             if (!monsterId || !maxHp || maxHp === 0) {
                 return;
             }
 
             if (currentHp === 0 || currentHp <= maxHp * 0.001) {
-                if (!this.userDataManager.enemyCache.isDead.get(enemyUid)) {
-                    this.userDataManager.enemyCache.deathTime.set(enemyUid, Date.now());
+                if (!this.userDataManager.enemyCache.isDead.get(enemyUuid)) {
+                    this.userDataManager.enemyCache.deathTime.set(enemyUuid, Date.now());
                 }
-                this.userDataManager.enemyCache.isDead.set(enemyUid, true);
+                this.userDataManager.enemyCache.isDead.set(enemyUuid, true);
                 return;
             }
 
@@ -832,13 +837,14 @@ class PacketProcessor {
         for (const entity of syncNearEntities.Appear) {
             const entityUuid = entity.Uuid;
             if (!entityUuid) continue;
+            const entityUuidStr = entityUuid.toString(); // Store full UUID string before shifting
             const entityUid = entityUuid.shiftRight(16).toNumber();
             const attrCollection = entity.Attrs;
 
             if (attrCollection && attrCollection.Attrs) {
                 switch (entity.EntType) {
                     case pb.EEntityType.EntMonster:
-                        this.#processEnemyAttrs(entityUid, attrCollection.Attrs);
+                        this.#processEnemyAttrs(entityUuidStr, entityUid, attrCollection.Attrs);
                         break;
                     case pb.EEntityType.EntChar:
                         this.#processPlayerAttrs(entityUid, attrCollection.Attrs);

@@ -509,18 +509,18 @@ interface CachedUserData {
 }
 
 interface EnemyCache {
-    name: Map<number, string>;
-    hp: Map<number, number>;
-    maxHp: Map<number, number>;
-    monsterId: Map<number, number>;
-    lastSeen: Map<number, number>;
-    position: Map<number, { x: number; y: number; z: number }>;
-    isDead: Map<number, boolean>;
-    damageDealt: Map<number, number>;
-    firstHitTime: Map<number, number>;
-    deathTime: Map<number, number>;
+    name: Map<string, string>;
+    hp: Map<string, number>;
+    maxHp: Map<string, number>;
+    monsterId: Map<string, number>;
+    lastSeen: Map<string, number>;
+    position: Map<string, { x: number; y: number; z: number }>;
+    isDead: Map<string, boolean>;
+    damageDealt: Map<string, number>;
+    firstHitTime: Map<string, number>;
+    deathTime: Map<string, number>;
     playerDamage: Map<
-        number,
+        string,
         Map<number, { damage: number; skills: Map<number, number> }>
     >;
 }
@@ -711,7 +711,7 @@ export class UserDataManager {
         isLucky: boolean,
         isCauseLucky: boolean,
         hpLessenValue: number = 0,
-        targetUid?: number,
+        targetUuid?: string,
     ): void {
         this.checkTimeoutClear();
         const user = this.getUser(uid);
@@ -725,8 +725,8 @@ export class UserDataManager {
             hpLessenValue,
         );
 
-        if (targetUid !== undefined) {
-            this.addMonsterDamage(targetUid, damage, uid, skillId);
+        if (targetUuid !== undefined) {
+            this.addMonsterDamage(targetUuid, damage, uid, skillId);
         }
     }
 
@@ -966,8 +966,8 @@ export class UserDataManager {
         this.enemyCache.playerDamage.clear();
     }
 
-    getMonsterDamageBreakdown(monsterId: number): any {
-        const playerDamageMap = this.enemyCache.playerDamage.get(monsterId);
+    getMonsterDamageBreakdown(monsterUuid: string): any {
+        const playerDamageMap = this.enemyCache.playerDamage.get(monsterUuid);
         if (!playerDamageMap) {
             return {
                 totalDamage: 0,
@@ -976,7 +976,7 @@ export class UserDataManager {
             };
         }
 
-        const totalDamage = this.enemyCache.damageDealt.get(monsterId) || 0;
+        const totalDamage = this.enemyCache.damageDealt.get(monsterUuid) || 0;
         const players: any[] = [];
 
         playerDamageMap.forEach((playerData, playerUid) => {
@@ -1009,10 +1009,10 @@ export class UserDataManager {
         players.sort((a, b) => b.damage - a.damage);
 
         let ttk: number | null = null;
-        const firstHitTime = this.enemyCache.firstHitTime.get(monsterId);
-        const deathTime = this.enemyCache.deathTime.get(monsterId);
-        const currentHp = this.enemyCache.hp.get(monsterId) ?? 0;
-        const maxHp = this.enemyCache.maxHp.get(monsterId);
+        const firstHitTime = this.enemyCache.firstHitTime.get(monsterUuid);
+        const deathTime = this.enemyCache.deathTime.get(monsterUuid);
+        const currentHp = this.enemyCache.hp.get(monsterUuid) ?? 0;
+        const maxHp = this.enemyCache.maxHp.get(monsterUuid);
 
         // Only calculate TTK if we have valid combat data and know the max HP
         if (totalDamage > 0 && firstHitTime && maxHp && maxHp > 0) {
@@ -1029,8 +1029,8 @@ export class UserDataManager {
         }
 
         return {
-            monsterId,
-            monsterName: this.enemyCache.name.get(monsterId),
+            monsterId: monsterUuid,
+            monsterName: this.enemyCache.name.get(monsterUuid),
             totalDamage,
             players,
             ttk,
@@ -1038,12 +1038,12 @@ export class UserDataManager {
     }
 
     addMonsterDamage(
-        monsterUid: number,
+        monsterUuid: string,
         damage: number,
         playerUid?: number,
         skillId?: number,
     ): void {
-        const monsterKey = monsterUid;
+        const monsterKey = monsterUuid;
         const currentDamage = this.enemyCache.damageDealt.get(monsterKey) || 0;
         this.enemyCache.damageDealt.set(monsterKey, currentDamage + damage);
 

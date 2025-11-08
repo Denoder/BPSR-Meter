@@ -132,7 +132,7 @@ export default function BossDamageBreakdown({
         };
 
         fetchBreakdown();
-    }, [monsterId, translateSkill]);
+    }, [monsterId]);
 
     const togglePlayer = (uid: number) => {
         setExpandedPlayers((prev) => {

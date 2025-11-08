@@ -85,9 +85,7 @@ function initializeApi(
 
     app.get("/api/monster-damage/:monsterId", (req: Request, res: Response) => {
         const { monsterId } = req.params;
-        const breakdown = userDataManager.getMonsterDamageBreakdown(
-            Number(monsterId),
-        );
+        const breakdown = userDataManager.getMonsterDamageBreakdown(monsterId);
         const data: ApiResponse = {
             code: 0,
             data: breakdown,
