@@ -195,11 +195,13 @@ export default function UpdateApp(): React.JSX.Element {
                         {t("ui.update.releaseNotes")}
                     </div>
                     <div
-                        className={`bg-(--bg-light) border border-(--border) p-4 rounded-(--radius) max-h-[200px] overflow-y-auto text-(--text-secondary) text-sm leading-[1.6] whitespace-pre-wrap`}
-                    >
-                        {updateInfo.releaseNotes ||
-                            t("ui.messages.noReleaseNotes")}
-                    </div>
+                        className={`bg-(--bg-light) border border-(--border) p-4 rounded-(--radius) max-h-[200px] overflow-y-auto text-(--text-secondary) text-sm leading-[1.6] release-notes`}
+                        dangerouslySetInnerHTML={{
+                            __html:
+                                updateInfo.releaseNotes ||
+                                t("ui.messages.noReleaseNotes"),
+                        }}
+                    />
                 </div>
 
                 {/* Download progress */}
