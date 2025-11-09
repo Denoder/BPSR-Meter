@@ -1,6 +1,6 @@
 {
     "name": "bpsr-meter",
-    "version": "0.4.4",
+    "version": "0.4.5",
     "description": "BPSR Meter",
     "author": "Denoder",
     "type": "module",
@@ -20,8 +20,7 @@
         "lint:prettier": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
         "test": "echo \"Error: no test specified\" && exit 1",
         "dist": "npm run build:all && electron-builder --win --x64",
-        "sync:proto": "node scripts/sync-proto.js",
-        "postinstall": "patch-package"
+        "sync:proto": "node scripts/sync-proto.js"
     },
     "keywords": [],
     "license": "AGPL-3.0",
@@ -68,7 +67,6 @@
         "electron": "^39.0.0",
         "electron-builder": "^26.0.12",
         "electron-vite": "^4.0.1",
-        "patch-package": "^8.0.1",
         "prettier": "^3.6.2",
         "protobufjs-cli": "^1.1.3",
         "ts-proto": "^2.8.3",
