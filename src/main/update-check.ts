@@ -267,7 +267,6 @@ export async function showUpdateDialog(updateInfo: UpdateInfo): Promise<void> {
         if (!updateWindow.isDestroyed() && pendingUpdateInfo) {
             setTimeout(() => {
                 updateWindow.webContents.send("update-info", pendingUpdateInfo);
-                pendingUpdateInfo = null;
             }, 1000);
             clearInterval(isUpdateWindowOpen);
         }
