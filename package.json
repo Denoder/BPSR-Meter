@@ -5,9 +5,6 @@
     "author": "Denoder",
     "type": "module",
     "main": "out/main/index.js",
-    "bin": {
-        "bpsr-meter": "dist/server/server.js"
-    },
     "engines": {
         "node": "^22.20.0"
     },
@@ -15,8 +12,7 @@
         "dev": "electron-vite dev",
         "dev:windows": "chcp 65001 > nul && electron-vite dev",
         "build": "electron-vite build",
-        "build:server": "tsc src/main/server.ts --outDir dist/server --module ES2022 --target ES2020 --moduleResolution bundler --esModuleInterop --resolveJsonModule --skipLibCheck",
-        "build:all": "npm run build && npm run build:server",
+        "build:all": "npm run build",
         "lint:prettier": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
         "test": "echo \"Error: no test specified\" && exit 1",
         "dist": "npm run build:all && electron-builder --win --x64",
@@ -73,19 +69,6 @@
         "typescript": "^5.9.3",
         "vite": "^7.1.11"
     },
-    "pkg": {
-        "scripts": "server.js",
-        "assets": [
-            "translations/**/*",
-            "settings.json",
-            "users.json",
-            "node_modules/cap/**/*"
-        ],
-        "targets": [
-            "node22-win-x64"
-        ],
-        "outputPath": "dist"
-    },
     "build": {
         "appId": "com.bpsr.meter",
         "productName": "BPSR Meter",
@@ -103,10 +86,7 @@
         },
         "files": [
             "out/**/*",
-            "proto/**/*",
             "translations/**/*",
-            "settings.json",
-            "users.json",
             "icon.ico",
             "icon.png",
             "!**/*.map",
@@ -128,13 +108,6 @@
                 ]
             }
         ],
-        "linux": {
-            "icon": "icon.png",
-            "target": [
-                "AppImage"
-            ],
-            "category": "Utility"
-        },
         "win": {
             "icon": "icon.ico",
             "target": [

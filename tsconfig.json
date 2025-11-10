@@ -6,7 +6,7 @@
             "ES2022",
             "DOM"
         ],
-        "outDir": "./dist",
+        "outDir": "./out",
         "rootDir": "./",
         "removeComments": true,
         "esModuleInterop": true,
@@ -38,12 +38,11 @@
         "src/server/**/*.ts",
         "src/types/**/*.ts",
         "src/utils/**/*.ts",
-        "src/vite-env.d.ts",
+        "types/import-meta.d.ts",
         "cap.d.ts",
     ],
     "exclude": [
         "node_modules",
-        "dist",
         "out",
         "src/renderer/**/*"
     ],
