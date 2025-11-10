@@ -11,6 +11,9 @@
 /damage_logs
 information_log.txt*
 
+# Data Files
+*.dat
+
 # Build output
 /dist
 /out

@@ -144,13 +144,14 @@ const isUuidMonster = (uuid: Long) => {
 };
 
 const doesStreamHaveIdentifier = (reader: BinaryReader) => {
-    let identifier = reader.readUInt32LE();
-    reader.readInt32();
-    if (identifier !== 0xfffffffe) return false;
-    identifier = reader.readInt32();
-    reader.readInt32();
-    //if (identifier !== 0xfffffffd) return false;
-    return true;
+    try {
+        const identifier = reader.readUInt32LE();
+        reader.readInt32();
+        if (identifier !== 0xfffffffe) return false;
+        return true;
+    } catch (e) {
+        return false;
+    }
 };
 
 const streamReadString = (reader: BinaryReader) => {
@@ -158,7 +159,7 @@ const streamReadString = (reader: BinaryReader) => {
     reader.readInt32();
     const buffer = reader.readBytes(length);
     reader.readInt32();
-    return buffer.toString();
+    return buffer.toString('utf8');
 };
 
 let currentUserUuid = Long.ZERO;
@@ -168,13 +169,13 @@ class PacketProcessor {
     userDataManager: UserDataManager;
     bpTimerClient: BPTimerClient;
 
+    static readonly TARGET_SERVICE_UUID = 0x63335342;
+
     constructor({ logger, userDataManager }: { logger: Logger; userDataManager: UserDataManager }) {
         this.logger = logger
         this.userDataManager = userDataManager;
 
-        // @ts-ignore
         const DB_URL = import.meta.env.VITE_BPTIMER_DB_URL;
-        // @ts-ignore
         const API_KEY = import.meta.env.VITE_BPTIMER_API_KEY;
 
         this.bpTimerClient = new BPTimerClient({
@@ -212,10 +213,10 @@ class PacketProcessor {
         if (attrCollection && attrCollection.Attrs) {
             if (isTargetPlayer) {
                 this.#processPlayerAttrs(targetUuid.toNumber(), attrCollection.Attrs);
-                this.#processPositionAttrs(targetUuid.toNumber(), 'player', attrCollection.Attrs);
+                this.#processPositionAttrs(String(targetUuid.toNumber()), EEntityType.EntChar, attrCollection.Attrs);
             } else if (isTargetMonster) {
                 this.#processEnemyAttrs(tgtUuid, targetUuid.toNumber(), attrCollection.Attrs);
-                this.#processPositionAttrs(tgtUuid, 'monster', attrCollection.Attrs);
+                this.#processPositionAttrs(tgtUuid, EEntityType.EntMonster, attrCollection.Attrs);
             }
         }
 
@@ -532,22 +533,25 @@ class PacketProcessor {
         // this.logger.debug(syncContainerDirtyData.VData.Buffer.toString('hex'));
     }
 
-    #processPositionAttrs(targetID: number | string, targetType: 'monster' | 'player', attrs: Attr[]) {
+    #processPositionAttrs(targetID: string, targetType: EEntityType, attrs: Attr[]) {
         for (const attr of attrs) {
             if (!attr.Id || !attr.RawData) continue;
 
             switch (attr.Id) {
-                case 52: // X
-                case 53: // Y
-                case 54: // Z
+                case EAttrType.AttrDir: // Direction (Is calulated in degrees, but am unable to determine which scaling point & if it's camera relative)
+                    //const direction = minimal.Reader.create(attr.RawData);
+                    //const dir = direction.string();
+                    //this.logger.debug(`_processPositionAttrs: Setting direction for ${targetType} ${targetID}: ${dir}`);
+                    break;
+                case EAttrType.AttrPos: // X, Y, Z
                     const position = Position.decode(attr.RawData);
                     const x = position.x ?? 0;
                     const y = position.y ?? 0;
                     const z = position.z ?? 0;
 
-                    if (targetType === 'monster') {
+                    if (targetType === EEntityType.EntMonster) {
                         this.userDataManager.enemyCache.position.set(targetID as string, { x, y, z });
-                    } else if (targetType === 'player' && targetID === this.userDataManager.localPlayerUid) {
+                    } else if (targetType === EEntityType.EntChar && targetID === String(this.userDataManager.localPlayerUid)) {
                         this.userDataManager.setLocalPlayerPosition({ x, y, z });
                     }
                     break;
@@ -730,14 +734,14 @@ class PacketProcessor {
         for (const entity of syncNearEntities.appear) {
             const entityUuid = entity.uuid;
             if (!entityUuid) continue;
-            const entityUuidStr = entityUuid.toString(); // Store full UUID string before shifting
+            const entityUuidStr = entityUuid.toString();
             const entityUid = entityUuid.shiftRight(16).toNumber();
             const attrCollection = entity.attrs;
 
             if (attrCollection && attrCollection.Attrs) {
                 switch (entity.entType) {
                     case EEntityType.EntMonster:
-                        this.#processPositionAttrs(entityUuidStr, 'monster', attrCollection.Attrs);
+                        this.#processPositionAttrs(entityUuidStr, EEntityType.EntMonster, attrCollection.Attrs);
                         this.#processEnemyAttrs(entityUuidStr, entityUid, attrCollection.Attrs);
                         break;
                     case EEntityType.EntChar:
@@ -752,42 +756,39 @@ class PacketProcessor {
     }
 
     #processNotifyMsg(reader: BinaryReader, isZstdCompressed: number) {
-        const serviceUuid = reader.readUInt64();
+        const serviceUUID = reader.readUInt64();
         const stubId = reader.readUInt32();
         const methodId = reader.readUInt32();
 
-        if (serviceUuid !== 0x0000000063335342n) {
-            this.logger.debug(`Skipping NotifyMsg with serviceId ${serviceUuid}`);
-            return;
-        }
+        if (serviceUUID === BigInt(PacketProcessor.TARGET_SERVICE_UUID)) {
+            let msgPayload = reader.readRemaining();
+            if (isZstdCompressed) {
+                msgPayload = this.#decompressPayload(msgPayload);
+            }
 
-        let msgPayload = reader.readRemaining();
-        if (isZstdCompressed) {
-            msgPayload = this.#decompressPayload(msgPayload);
-        }
-
-        switch (methodId) {
-            case NotifyMethod.SyncNearEntities:
-                this.#processSyncNearEntities(msgPayload);
-                break;
-            case NotifyMethod.SyncContainerData:
-                this.#processSyncContainerData(msgPayload);
-                break;
-            case NotifyMethod.SyncContainerDirtyData:
-                this.#processSyncContainerDirtyData(msgPayload);
-                break;
-            case NotifyMethod.SyncServerTime:
-                this.#processSyncServerTime(msgPayload);
-                break;
-            case NotifyMethod.SyncToMeDeltaInfo:
-                this.#processSyncToMeDeltaInfo(msgPayload);
-                break;
-            case NotifyMethod.SyncNearDeltaInfo:
-                this.#processSyncNearDeltaInfo(msgPayload);
-                break;
-            default:
-                this.logger.debug(`Skipping NotifyMsg with methodId ${methodId}`);
-                break;
+            switch (methodId) {
+                case NotifyMethod.SyncNearEntities:
+                    this.#processSyncNearEntities(msgPayload);
+                    break;
+                case NotifyMethod.SyncContainerData:
+                    this.#processSyncContainerData(msgPayload);
+                    break;
+                case NotifyMethod.SyncContainerDirtyData:
+                    this.#processSyncContainerDirtyData(msgPayload);
+                    break;
+                case NotifyMethod.SyncServerTime:
+                    this.#processSyncServerTime(msgPayload);
+                    break;
+                case NotifyMethod.SyncToMeDeltaInfo:
+                    this.#processSyncToMeDeltaInfo(msgPayload);
+                    break;
+                case NotifyMethod.SyncNearDeltaInfo:
+                    this.#processSyncNearDeltaInfo(msgPayload);
+                    break;
+                default:
+                    this.logger.debug(`Skipping NotifyMsg with methodId ${methodId}`);
+                    break;
+            }
         }
         return;
     }
@@ -808,7 +809,7 @@ class PacketProcessor {
                 }
 
                 const packetReader = new BinaryReader(packetsReader.readBytes(packetSize));
-                packetSize = packetReader.readUInt32(); // to advance
+                packetSize = packetReader.readUInt32();
                 const packetType = packetReader.readUInt16();
                 const isZstdCompressed = packetType & 0x8000;
                 const msgTypeId = packetType & 0x7fff;
@@ -822,7 +823,7 @@ class PacketProcessor {
                         break;
                     case MessageType.FrameDown:
                         const serverSequenceId = packetReader.readUInt32();
-                        if (packetReader.remaining() == 0) break;
+                        if (packetReader.remaining == 0) break;
 
                         let nestedPacket = packetReader.readRemaining();
 
@@ -837,7 +838,7 @@ class PacketProcessor {
                         // this.logger.debug(`Ignore packet with message type ${msgTypeId}.`);
                         break;
                 }
-            } while (packetsReader.remaining() > 0);
+            } while (packetsReader.remaining > 0);
         } catch (e) {
             this.logger.error(`Fail while parsing data for player ${currentUserUuid.shiftRight(16)}.\nErr: ${e}`);
         }

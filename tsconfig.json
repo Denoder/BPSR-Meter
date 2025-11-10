@@ -38,6 +38,7 @@
         "src/server/**/*.ts",
         "src/types/**/*.ts",
         "src/utils/**/*.ts",
+        "src/vite-env.d.ts",
         "cap.d.ts",
     ],
     "exclude": [
