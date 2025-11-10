@@ -1,4 +1,4 @@
-import { BrowserWindow } from "electron";
+import { BrowserWindow, type BrowserWindowConstructorOptions } from "electron";
 import path from "path";
 import fs from "fs";
 import { is } from "@electron-toolkit/utils";
@@ -45,9 +45,13 @@ export class WindowManager {
     createWindowConfig(
         windowType: WindowType,
         savedSizes: Record<WindowType, WindowSize>,
-    ) {
+    ): BrowserWindowConstructorOptions {
         const config = WINDOW_CONFIGS[windowType];
-        const size = Object.assign(config.defaultSize, this.lastWindowSizes[windowType], savedSizes[windowType]);
+        const size = Object.assign(
+            config.defaultSize,
+            this.lastWindowSizes[windowType],
+            savedSizes[windowType],
+        );
         this.lastWindowSizes[windowType] = size;
 
         let shouldUseTransparency = true;

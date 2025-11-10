@@ -8,13 +8,34 @@ export const CONSTANTS = {
 } as const;
 
 export const WINDOW_CONFIGS = {
-    main: { defaultSize: { width: 950, height: 480, scale: 1 }, resizable: true },
-    group: { defaultSize: { width: 480, height: 680, scale: 1 }, resizable: true },
-    history: { defaultSize: { width: 950, height: 600, scale: 1 }, resizable: true },
-    device: { defaultSize: { width: 600, height: 400, scale: 1 }, resizable: true },
-    settings: { defaultSize: { width: 420, height: 520, scale: 1 }, resizable: true },
-    monsters: { defaultSize: { width: 950, height: 600, scale: 1 }, resizable: true },
-    update: { defaultSize: { width: 500, height: 650, scale: 1 }, resizable: false },
+    main: {
+        defaultSize: { width: 950, height: 480, scale: 1 },
+        resizable: true,
+    },
+    group: {
+        defaultSize: { width: 480, height: 680, scale: 1 },
+        resizable: true,
+    },
+    history: {
+        defaultSize: { width: 950, height: 600, scale: 1 },
+        resizable: true,
+    },
+    device: {
+        defaultSize: { width: 600, height: 400, scale: 1 },
+        resizable: true,
+    },
+    settings: {
+        defaultSize: { width: 420, height: 520, scale: 1 },
+        resizable: true,
+    },
+    monsters: {
+        defaultSize: { width: 950, height: 600, scale: 1 },
+        resizable: true,
+    },
+    update: {
+        defaultSize: { width: 500, height: 650, scale: 1 },
+        resizable: false,
+    },
 } as const;
 
 export const DEFAULT_KEYBINDS = {

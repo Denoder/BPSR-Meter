@@ -97,7 +97,7 @@ export function useWindowResize(windowType: WindowType) {
                 const deltaY = e.screenY - startY;
 
                 const minWidth = 400;
-                const minHeight = 300;
+                const minHeight = 30;
 
                 let newWidth = startWidth;
                 let newHeight = startHeight;

@@ -155,8 +155,8 @@ class Application {
                     {
                         x: bounds.x,
                         y: bounds.y,
-                        width: Math.max(width, 400),
-                        height: Math.max(height, 300),
+                        width: width,
+                        height: height,
                     },
                     false,
                 );
