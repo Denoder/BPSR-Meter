@@ -71,7 +71,6 @@ export const globalSettings: GlobalSettings = {
     autoClearOnTimeout: false,
     autoClearTimeoutSeconds: 20,
     onlyRecordEliteDummy: false,
-    enableFightLog: false,
     enableHistorySave: false,
     enableBPTimerSubmission: true,
     performanceMode: false,

@@ -69,7 +69,6 @@ export interface Settings {
     selectedPlayers: string[];
     filterMode: "all" | "group";
     isPaused: boolean;
-    enableFightLog?: boolean;
     enableHistorySave?: boolean;
     saveOnLineSwitch?: boolean;
     autoClearOnTimeout?: boolean;

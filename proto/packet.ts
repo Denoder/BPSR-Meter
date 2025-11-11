@@ -245,16 +245,12 @@ class PacketProcessor {
             if (damage.isZero()) continue;
 
             const isCrit = syncDamageInfo.TypeFlag != null ? (syncDamageInfo.TypeFlag & 1) === 1 : false;
-            //this.logger.info(`Debug: SkillID ${skillId} Damage ${damage} IsCrit ${isCrit} TypeFlag ${syncDamageInfo.TypeFlag}`);
-
             const isCauseLucky = syncDamageInfo.TypeFlag != null ? (syncDamageInfo.TypeFlag & 0b100) === 0b100 : false;
-
             const isHeal = syncDamageInfo.Type === EDamageType.Heal;
             const isDead = syncDamageInfo.IsDead != null ? syncDamageInfo.IsDead : false;
             const isLucky = !!luckyValue;
             const hpLessenValue = syncDamageInfo.HpLessenValue != null ? syncDamageInfo.HpLessenValue : Long.ZERO;
             const damageElement = getDamageElement(syncDamageInfo.Property);
-            const damageSource = syncDamageInfo.DamageSource ?? 0;
 
             if (isTargetPlayerDmg) {
                 //Player target
@@ -301,7 +297,7 @@ class PacketProcessor {
                             isLucky,
                             isCauseLucky,
                             hpLessenValue.toNumber(),
-                            tgtUuidStr, // Use UUID string instead of number
+                            tgtUuidStr,
                         );
                     }
 
@@ -314,57 +310,6 @@ class PacketProcessor {
                     }
                 }
             }
-
-            let extra = [];
-            if (isCrit) extra.push('Crit');
-            if (isLucky) extra.push('Lucky');
-            if (isCauseLucky) extra.push('CauseLucky');
-            if (extra.length === 0) extra = ['Normal'];
-
-            const actionType = isHeal ? 'HEAL' : 'DMG';
-
-            let infoStr = `SRC: `;
-            if (isAttackerPlayer) {
-                const attacker = this.userDataManager.getUser(attackerUuid.toNumber());
-                if (attacker.name) {
-                    infoStr += attacker.name;
-                }
-                infoStr += `#${attackerUuid.toString()}(player)`;
-            } else {
-                if (this.userDataManager.enemyCache.name.has(attackerUuid.toNumber().toString())) {
-                    infoStr += this.userDataManager.enemyCache.name.get(attackerUuid.toNumber().toString());
-                }
-                infoStr += `#${attackerUuid.toString()}(enemy)`;
-            }
-
-            let targetName = '';
-            if (isTargetPlayer) {
-                const target = this.userDataManager.getUser(targetUuid.toNumber());
-                if (target.name) {
-                    targetName += target.name;
-                }
-                targetName += `#${targetUuid.toString()}(player)`;
-            } else {
-                if (this.userDataManager.enemyCache.name.has(targetUuid.toNumber().toString())) {
-                    targetName += this.userDataManager.enemyCache.name.get(targetUuid.toNumber().toString());
-                }
-                targetName += `#${targetUuid.toString()}(enemy)`;
-            }
-            infoStr += ` TGT: ${targetName}`;
-
-            const dmgLogArr = [
-                `[${actionType}]`,
-                `DS: ${getDamageSource(damageSource)}`,
-                infoStr,
-                `ID: ${skillId}`,
-                `VAL: ${damage}`,
-                `HPLSN: ${hpLessenValue}`,
-                `ELEM: ${damageElement.slice(-1)}`,
-                `EXT: ${extra.join('|')}`,
-            ];
-            const dmgLog = dmgLogArr.join(' ');
-            this.logger.debug(dmgLog);
-            this.userDataManager.addLog(dmgLog);
         }
     }
 

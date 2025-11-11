@@ -760,35 +760,6 @@ export class UserDataManager {
         user.addTakenDamage(damage, isDead);
     }
 
-    async addLog(log: string): Promise<void> {
-        if (!this.globalSettings.enableFightLog) return;
-
-        const logDir = path.join(
-            process.env.USER_DATA_PATH,
-            "logs",
-            String(this.startTime),
-        );
-        const logFile = path.join(logDir, "fight.log");
-        const timestamp = new Date().toISOString();
-        const logEntry = `[${timestamp}] ${log}\n`;
-
-        await this.logLock.acquire();
-        try {
-            if (!this.logDirExist.has(logDir)) {
-                try {
-                    await fsPromises.access(logDir);
-                } catch (error) {
-                    await fsPromises.mkdir(logDir, { recursive: true });
-                }
-                this.logDirExist.add(logDir);
-            }
-            await fsPromises.appendFile(logFile, logEntry, "utf8");
-        } catch (error) {
-            this.logger.error("Failed to save log:", error);
-        }
-        this.logLock.release();
-    }
-
     setProfession(uid: number, profession: string): void {
         const user = this.getUser(uid);
         if (user.profession !== profession) {
@@ -828,7 +799,6 @@ export class UserDataManager {
             }
         }
 
-        // Final fallback: default to 0
         return 0;
     }
 

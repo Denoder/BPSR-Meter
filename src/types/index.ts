@@ -70,7 +70,6 @@ export interface GlobalSettings {
     selectedPlayers: string[];
     filterMode: "all" | "group";
     isPaused: boolean;
-    enableFightLog?: boolean;
     enableHistorySave?: boolean;
     saveOnLineSwitch?: boolean;
     autoClearOnTimeout?: boolean;
