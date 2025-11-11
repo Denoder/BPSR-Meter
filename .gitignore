@@ -19,6 +19,7 @@ information_log.txt*
 /out
 settings.json
 player_registry.json
+SyncContainerData.json
 
 # Proto
 buf.gen.yaml

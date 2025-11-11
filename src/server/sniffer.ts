@@ -465,7 +465,6 @@ class Sniffer {
             return "npcap";
         })();
 
-        // Only explicit choices supported: npcap or windivert.
         if (selectedBackend === "npcap") {
             const npcapReady = await checkNpcap(this.logger);
             if (!npcapReady) {

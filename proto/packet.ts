@@ -348,11 +348,9 @@ class PacketProcessor {
     }
 
     #processSyncContainerData(payloadBuffer: Buffer) {
-        // for some reason protobufjs doesn't work here, we use google-protobuf instead
         try {
             const syncContainerData = SyncContainerData.decode(payloadBuffer);
-            // this.logger.debug(JSON.stringify(syncContainerData, null, 4));
-            // fs.writeFileSync('SyncContainerData.json', JSON.stringify(syncContainerData, null, 4));
+            //fs.writeFileSync('SyncContainerData.json', JSON.stringify(syncContainerData, null, 4));
 
             if (!syncContainerData.vData) return;
             const vData = syncContainerData.vData;
@@ -377,6 +375,7 @@ class PacketProcessor {
                 });
 
                 this.userDataManager.setLineId(playerUid, sceneData.lineId);
+                if (sceneData.pos) this.userDataManager.setLocalPlayerPosition(sceneData.pos);
             }
 
             if (charBase.name) {
