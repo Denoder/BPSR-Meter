@@ -10,9 +10,10 @@
     },
     "scripts": {
         "dev": "electron-vite dev",
-        "dev:windows": "chcp 65001 > nul && electron-vite dev",
+        "dev:win": "chcp 65001 > nul && electron-vite dev",
         "build": "electron-vite build",
         "build:all": "npm run build",
+        "electron:rebuild:win": ".\\node_modules\\.bin\\electron-rebuild.cmd",
         "lint:prettier": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
         "test": "echo \"Error: no test specified\" && exit 1",
         "dist": "npm run build:all && electron-builder --win --x64",
