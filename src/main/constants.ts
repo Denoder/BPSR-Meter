@@ -60,8 +60,16 @@ export const keybindSettings = [
     "minimizeKeybind",
 ];
 
-export type WindowType = keyof typeof WINDOW_CONFIGS;
+export type WindowType =
+    | "main"
+    | "group"
+    | "history"
+    | "device"
+    | "settings"
+    | "monsters"
+    | "update";
 export type WindowSize = { width: number; height: number; scale?: number };
+export type WindowPosition = { x: number; y: number };
 
 export const globalSettings: GlobalSettings = {
     availableLanguages: ["en", "zh"],
