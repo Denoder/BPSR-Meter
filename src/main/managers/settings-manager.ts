@@ -1,5 +1,5 @@
 import fs from "fs/promises";
-import { WindowType, WindowSize } from "../constants";
+import { WindowType, WindowSize, WindowPosition } from "../constants";
 import type { GlobalSettings } from "../../types";
 
 export class SettingsManager {
@@ -42,6 +42,29 @@ export class SettingsManager {
         return defaultSizes;
     }
 
+    async getWindowPositions(
+        defaultPositions: Record<WindowType, WindowPosition>,
+    ): Promise<Record<WindowType, WindowPosition>> {
+        try {
+            const settings = await this.getSettings();
+            if (settings.windowPositions) {
+                Object.entries(settings.windowPositions).forEach(
+                    ([type, pos]) => {
+                        if (type in defaultPositions) {
+                            defaultPositions[type as WindowType] =
+                                pos as WindowPosition;
+                        }
+                    },
+                );
+                return settings.windowPositions as Record<
+                    WindowType,
+                    WindowPosition
+                >;
+            }
+        } catch {}
+        return defaultPositions;
+    }
+
     async saveWindowSize(
         windowType: WindowType,
         size: WindowSize,
@@ -55,6 +78,22 @@ export class SettingsManager {
             await this.updateSettings(settings);
         } catch (error) {
             throw new Error(`Error saving window size: ${error}`);
+        }
+    }
+
+    async saveWindowPosition(
+        windowType: WindowType,
+        pos: { x: number; y: number },
+    ): Promise<void> {
+        try {
+            const settings = await this.getSettings();
+            settings.windowPositions = {
+                ...settings.windowPositions,
+                [windowType]: pos,
+            };
+            await this.updateSettings(settings);
+        } catch (error) {
+            throw new Error(`Error saving window position: ${error}`);
         }
     }
 }

@@ -14,7 +14,12 @@ import {
 import { electronApp, is } from "@electron-toolkit/utils";
 import fs from "fs";
 import path from "path";
-import { CONSTANTS, WindowType, keybindSettings } from "./constants";
+import {
+    CONSTANTS,
+    WindowType,
+    WindowSize,
+    keybindSettings,
+} from "./constants";
 import type { GlobalSettings } from "../types";
 import { SettingsManager } from "./managers/settings-manager";
 import { Logger } from "./logger";
@@ -245,7 +250,30 @@ class Application {
             },
         );
 
-        ipcMain.handle("get-saved-window-sizes", async () => {
+        ipcMain.on(
+            "save-window-position",
+            async (
+                _event: IpcMainEvent,
+                windowType: WindowType,
+                x: number,
+                y: number,
+            ) => {
+                try {
+                    await this.#windowManager.saveWindowPosition(
+                        windowType,
+                        x,
+                        y,
+                    );
+                } catch (err) {
+                    this.#logger.error(
+                        `Error saving window position for ${windowType}`,
+                        err,
+                    );
+                }
+            },
+        );
+
+        ipcMain.handle("get-saved-window-size", async () => {
             return await this.#settingsManager.getWindowSizes(
                 this.#windowManager.lastWindowSizes,
             );

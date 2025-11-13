@@ -1,14 +1,24 @@
-import { BrowserWindow, type BrowserWindowConstructorOptions } from "electron";
+import {
+    BrowserWindow,
+    type BrowserWindowConstructorOptions,
+    screen,
+} from "electron";
 import path from "path";
 import fs from "fs";
 import { is } from "@electron-toolkit/utils";
-import { WINDOW_CONFIGS, WindowType, WindowSize } from "../constants";
+import {
+    WINDOW_CONFIGS,
+    WindowType,
+    WindowSize,
+    WindowPosition,
+} from "../constants";
 import { SettingsManager } from "./settings-manager";
 import { Logger } from "../logger";
 
 export class WindowManager {
     windows: Record<WindowType, BrowserWindow | null>;
     lastWindowSizes: Record<WindowType, WindowSize>;
+    lastWindowPositions: Record<WindowType, { x: number; y: number }>;
     #settingsManager: SettingsManager;
     #logger: Logger;
     #serverPort: number;
@@ -20,6 +30,7 @@ export class WindowManager {
     ) {
         this.windows = this.initializeWindows();
         this.lastWindowSizes = this.initializeDefaultSizes();
+        this.lastWindowPositions = this.initializeDefaultPositions();
         this.#settingsManager = settingsManager;
         this.#logger = logger;
         this.#serverPort = serverPort;
@@ -42,9 +53,19 @@ export class WindowManager {
         return sizes;
     }
 
+    initializeDefaultPositions(): Record<WindowType, { x: number; y: number }> {
+        const positions: Record<WindowType, { x: number; y: number }> =
+            {} as any;
+        (Object.keys(WINDOW_CONFIGS) as WindowType[]).forEach((type) => {
+            positions[type] = { x: 0, y: 0 };
+        });
+        return positions;
+    }
+
     createWindowConfig(
         windowType: WindowType,
         savedSizes: Record<WindowType, WindowSize>,
+        savedPositions?: Record<WindowType, WindowPosition>,
     ): BrowserWindowConstructorOptions {
         const config = WINDOW_CONFIGS[windowType];
         const size = Object.assign(
@@ -66,7 +87,7 @@ export class WindowManager {
             this.#logger.error("Error reading transparency setting", error);
         }
 
-        return {
+        const opts: BrowserWindowConstructorOptions = {
             width: size.width,
             height: size.height,
             transparent: shouldUseTransparency,
@@ -84,11 +105,70 @@ export class WindowManager {
             icon: path.join(__dirname, "../../icon.ico"),
             title: windowType.charAt(0).toUpperCase() + windowType.slice(1),
         };
+        const pos = savedPositions?.[windowType];
+        if (pos?.x && pos?.y) {
+            try {
+                const displays = screen.getAllDisplays();
+                if (displays.length > 0) {
+                    const windowWidth = size.width;
+                    const windowHeight = size.height;
+
+                    const minX = Math.min(...displays.map((d) => d.workArea.x));
+                    const maxX =
+                        Math.max(
+                            ...displays.map(
+                                (d) => d.workArea.x + d.workArea.width,
+                            ),
+                        ) - windowWidth;
+                    const minY = Math.min(...displays.map((d) => d.workArea.y));
+                    const maxY =
+                        Math.max(
+                            ...displays.map(
+                                (d) => d.workArea.y + d.workArea.height,
+                            ),
+                        ) - windowHeight;
+
+                    const clampedX = Math.max(minX, Math.min(pos.x, maxX));
+                    const clampedY = Math.max(minY, Math.min(pos.y, maxY));
+
+                    opts.x = clampedX;
+                    opts.y = clampedY;
+                } else {
+                    opts.x = pos.x;
+                    opts.y = pos.y;
+                }
+            } catch (err) {
+                opts.x = pos.x;
+                opts.y = pos.y;
+            }
+        }
+
+        return opts;
     }
 
     setupWindowEvents(window: BrowserWindow, windowType: WindowType) {
         window.setAlwaysOnTop(true, "screen-saver");
         window.setIgnoreMouseEvents(false);
+
+        let moveTimeout: NodeJS.Timeout | null = null;
+        window.on("move", () => {
+            if (moveTimeout) clearTimeout(moveTimeout);
+            moveTimeout = setTimeout(async () => {
+                try {
+                    const bounds = window.getBounds();
+                    await this.saveWindowPosition(
+                        windowType,
+                        bounds.x,
+                        bounds.y,
+                    );
+                } catch (err) {
+                    this.#logger.error(
+                        "Failed to save window position on move",
+                        err,
+                    );
+                }
+            }, 500);
+        });
 
         window.once("ready-to-show", () => {
             if (windowType !== "main") window.show();
@@ -131,7 +211,14 @@ export class WindowManager {
         const savedSizes = await this.#settingsManager.getWindowSizes(
             this.lastWindowSizes,
         );
-        const windowConfig = this.createWindowConfig(windowType, savedSizes);
+        const savedPositions = await this.#settingsManager.getWindowPositions(
+            this.lastWindowPositions,
+        );
+        const windowConfig = this.createWindowConfig(
+            windowType,
+            savedSizes,
+            savedPositions,
+        );
 
         this.windows[windowType] = new BrowserWindow(windowConfig);
         this.setupWindowEvents(this.windows[windowType]!, windowType);
@@ -192,6 +279,22 @@ export class WindowManager {
         await this.#settingsManager.saveWindowSize(
             windowType,
             this.lastWindowSizes[windowType],
+        );
+    }
+
+    async saveWindowPosition(
+        windowType: WindowType,
+        x?: number,
+        y?: number,
+    ): Promise<void> {
+        this.lastWindowPositions[windowType] = {
+            ...this.lastWindowPositions[windowType],
+            ...(x !== undefined && { x }),
+            ...(y !== undefined && { y }),
+        };
+        await this.#settingsManager.saveWindowPosition(
+            windowType,
+            this.lastWindowPositions[windowType],
         );
     }
 

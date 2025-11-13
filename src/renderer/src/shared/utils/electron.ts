@@ -25,6 +25,17 @@ export interface UpdateInfo {
     available: boolean;
 }
 
+export type WindowType =
+    | "main"
+    | "group"
+    | "history"
+    | "device"
+    | "settings"
+    | "monsters"
+    | "update";
+export type WindowSize = { width: number; height: number; scale?: number };
+export type WindowPosition = { x: number; y: number };
+
 export const electron = {
     // General
     onDataReset: (callback: () => void) =>
@@ -34,23 +45,33 @@ export const electron = {
     toggleLockState: () => safeElectron("toggleLockState"),
     setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) =>
         safeElectron("setIgnoreMouseEvents", ignore, options),
-    getWindowPosition: async (): Promise<{ x: number; y: number }> =>
+    getWindowPosition: async (): Promise<WindowPosition> =>
         (await safeElectron("getWindowPosition")) || { x: 0, y: 0 },
-    setWindowPosition: (windowType: string, x: number, y: number) =>
+    setWindowPosition: (windowType: WindowType, x: number, y: number) =>
         safeElectron("setWindowPosition", windowType, x, y),
     saveWindowSize: (
-        windowType: string,
+        windowType: WindowType,
         width?: number,
         height?: number,
         scale?: number,
     ) => safeElectron("saveWindowSize", windowType, width, height, scale),
     getSavedWindowSize: async (
-        windowType: string,
-    ): Promise<{ width: number; height: number; scale: number } | null> =>
-        (await safeElectron("getSavedWindowSize", windowType)) || null,
+        windowType?: WindowType,
+    ): Promise<WindowSize | null> => {
+        const all = (await safeElectron("getSavedWindowSize")) as
+            | Record<WindowType, WindowSize>
+            | undefined;
+        if (!all) return null;
+        if (windowType) return all[windowType] || null;
+        return all as unknown as WindowSize | null;
+    },
+
+    // Window position
+    saveWindowPosition: (windowType: WindowType, x: number, y: number) =>
+        safeElectron("saveWindowPosition", windowType, x, y),
 
     // Window resize
-    resizeWindow: (windowType: string, width: number, height: number) =>
+    resizeWindow: (windowType: WindowType, width: number, height: number) =>
         safeElectron("resizeWindow", windowType, width, height),
 
     // Window openers

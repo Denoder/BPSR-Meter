@@ -53,7 +53,9 @@ contextBridge.exposeInMainWorld("electron", {
         height: number,
         scale?: number,
     ) => ipcRenderer.send("save-window-size", windowType, width, height, scale),
-    getSavedWindowSizes: () => ipcRenderer.invoke("get-saved-window-sizes"),
+    getSavedWindowSize: () => ipcRenderer.invoke("get-saved-window-size"),
+    saveWindowPosition: (windowType: WindowType, x: number, y: number) =>
+        ipcRenderer.send("save-window-position", windowType, x, y),
     updateVisibleColumns: (cols: Record<string, boolean>) =>
         ipcRenderer.send("update-visible-columns", cols),
     onVisibleColumnsChanged: (

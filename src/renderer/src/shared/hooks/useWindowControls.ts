@@ -47,9 +47,8 @@ export function useWindowControls(
     useEffect(() => {
         const loadSavedScale = async () => {
             try {
-                const savedSizes =
-                    await electron.getSavedWindowSize(windowType);
-                const savedScale = savedSizes?.scale;
+                const savedSizes = await electron.getSavedWindowSize();
+                const savedScale = savedSizes?.[windowType]?.scale;
 
                 if (savedScale) {
                     setScale(savedScale);
@@ -151,6 +150,7 @@ export function useWindowControls(
                 setIsDragging(false);
                 dragStateRef.current = null;
                 console.log("Drag ended");
+                handleDragEndPersist();
             }
         };
 
@@ -169,6 +169,22 @@ export function useWindowControls(
             if (isDragging) {
                 setIsDragging(false);
                 dragStateRef.current = null;
+                handleDragEndPersist();
+            }
+        };
+
+        const handleDragEndPersist = async () => {
+            try {
+                const pos = await electron.getWindowPosition();
+                if (
+                    pos &&
+                    typeof pos.x === "number" &&
+                    typeof pos.y === "number"
+                ) {
+                    electron.saveWindowPosition?.(windowType, pos.x, pos.y);
+                }
+            } catch (err) {
+                console.warn("Failed to persist window position:", err);
             }
         };
 
