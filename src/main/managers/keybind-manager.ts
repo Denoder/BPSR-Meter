@@ -23,6 +23,7 @@ export class KeybindManager {
             device: settings.deviceKeybind || DEFAULT_KEYBINDS.device,
             history: settings.historyKeybind || DEFAULT_KEYBINDS.history,
             dataReset: settings.dataResetKeybind || DEFAULT_KEYBINDS.dataReset,
+            minimize: settings.minimizeKeybind || DEFAULT_KEYBINDS.minimize,
         };
 
         globalShortcut.unregisterAll();
@@ -57,6 +58,9 @@ export class KeybindManager {
             case "dataReset":
                 this.handleDataReset();
                 break;
+            case "minimize":
+                this.handleMinimizeWindow();
+                break;
             default:
                 if (toggleActions.includes(action)) {
                     this.#WindowManager.toggleWindow(action as WindowType);
@@ -80,6 +84,13 @@ export class KeybindManager {
             this.#isLocked,
         );
         this.#logger.log(`Lock state changed to: ${this.#isLocked}`);
+    }
+
+    handleMinimizeWindow(): void {
+        const mainWindow = this.#WindowManager.getWindow("main");
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            this.#WindowManager.toggleMinimizeWindow("main" as WindowType);
+        }
     }
 
     registerIpcHandlers(): void {

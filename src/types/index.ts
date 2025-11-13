@@ -66,21 +66,11 @@ export interface ManualGroup {
     members: ManualGroupMember[];
 }
 
-export type WindowType =
-    | "main"
-    | "group"
-    | "history"
-    | "device"
-    | "settings"
-    | "monsters"
-    | "update";
-export type WindowSize = { width: number; height: number; scale?: number };
-export type WindowPosition = { x: number; y: number };
-
 export interface GlobalSettings {
     selectedPlayers: string[];
     filterMode: "all" | "group";
     isPaused: boolean;
+    enableFightLog?: boolean;
     enableHistorySave?: boolean;
     saveOnLineSwitch?: boolean;
     autoClearOnTimeout?: boolean;
@@ -91,22 +81,13 @@ export interface GlobalSettings {
     availableLanguages?: string[];
     manualGroup?: ManualGroup;
     windowSizes?: {
-        main?: WindowSize;
-        group?: WindowSize;
-        history?: WindowSize;
-        device?: WindowSize;
-        settings?: WindowSize;
-        monsters?: WindowSize;
-        update?: WindowSize;
-    };
-    windowPositions?: {
-        main?: WindowPosition;
-        group?: WindowPosition;
-        history?: WindowPosition;
-        device?: WindowPosition;
-        settings?: WindowPosition;
-        monsters?: WindowPosition;
-        update?: WindowPosition;
+        main?: { width: number; height: number; scale?: number };
+        group?: { width: number; height: number; scale?: number };
+        history?: { width: number; height: number; scale?: number };
+        device?: { width: number; height: number; scale?: number };
+        settings?: { width: number; height: number; scale?: number };
+        monsters?: { width: number; height: number; scale?: number };
+        update?: { width: number; height: number; scale?: number };
     };
     selectedDevice?: number | string | null;
     captureBackend?: "npcap" | "windivert";
@@ -125,6 +106,7 @@ export interface GlobalSettings {
     deviceKeybind?: string;
     historyKeybind?: string;
     dataResetKeybind?: string;
+    minimizeKeybind?: string;
     clickthroughEnabled?: boolean;
 }
 

@@ -46,6 +46,7 @@ export const DEFAULT_KEYBINDS = {
     device: "CommandOrControl+D",
     history: "CommandOrControl+H",
     dataReset: "CommandOrControl+R",
+    minimize: "CommandOrControl+B",
 } as const;
 
 export const keybindSettings = [
@@ -56,18 +57,11 @@ export const keybindSettings = [
     "deviceKeybind",
     "historyKeybind",
     "dataResetKeybind",
+    "minimizeKeybind",
 ];
 
-export type WindowType =
-    | "main"
-    | "group"
-    | "history"
-    | "device"
-    | "settings"
-    | "monsters"
-    | "update";
+export type WindowType = keyof typeof WINDOW_CONFIGS;
 export type WindowSize = { width: number; height: number; scale?: number };
-export type WindowPosition = { x: number; y: number };
 
 export const globalSettings: GlobalSettings = {
     availableLanguages: ["en", "zh"],
@@ -79,6 +73,7 @@ export const globalSettings: GlobalSettings = {
     autoClearOnTimeout: false,
     autoClearTimeoutSeconds: 20,
     onlyRecordEliteDummy: false,
+    enableFightLog: false,
     enableHistorySave: false,
     enableBPTimerSubmission: true,
     performanceMode: false,
@@ -92,6 +87,7 @@ export const globalSettings: GlobalSettings = {
     settingsKeybind: "CommandOrControl+S",
     deviceKeybind: "CommandOrControl+D",
     historyKeybind: "CommandOrControl+H",
+    minimizeKeybind: "CommandOrControl+B",
     lastPausedAt: null,
     lastResumedAt: null,
     manualGroup: {
