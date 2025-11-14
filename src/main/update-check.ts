@@ -226,15 +226,19 @@ async function downloadAndInstall(
 
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        exec(`"${installerPath}"`, (error) => {
+        exec(`"${installerPath}"`, (error, stdout, stderr) => {
             if (error) {
                 console.error("Failed to run installer:", error);
+                console.error("STDERR:", stderr);
+                updateWindow?.webContents.send(
+                    "update-error",
+                    `Installer failed: ${error.message}`,
+                );
+                return;
             }
-        });
 
-        setTimeout(() => {
             app.quit();
-        }, 500);
+        });
     } catch (error) {
         console.error("Update installation failed:", error);
         const errorMessage =

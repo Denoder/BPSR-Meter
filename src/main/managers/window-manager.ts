@@ -14,6 +14,7 @@ import {
 } from "../constants";
 import { SettingsManager } from "./settings-manager";
 import { Logger } from "../logger";
+import type { GlobalSettings } from "../../types";
 
 export class WindowManager {
     windows: Record<WindowType, BrowserWindow | null>;
@@ -81,8 +82,9 @@ export class WindowManager {
                 this.#settingsManager.settingsPath,
                 "utf8",
             );
-            const parsedSettings = JSON.parse(settings);
-            shouldUseTransparency = !parsedSettings.disableTransparency;
+            const parsedSettings = JSON.parse(settings) as GlobalSettings;
+            shouldUseTransparency =
+                !parsedSettings?.disableTransparency || false;
         } catch (error) {
             this.#logger.error("Error reading transparency setting", error);
         }

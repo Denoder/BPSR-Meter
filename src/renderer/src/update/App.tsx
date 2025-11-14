@@ -43,7 +43,6 @@ export default function UpdateApp(): React.JSX.Element {
 
         const unsubscribeError = electron.onUpdateError((error: string) => {
             alert(`Update failed: ${error}`);
-            electron.closeWindow();
         });
 
         return () => {

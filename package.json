@@ -1,12 +1,12 @@
 {
     "name": "bpsr-meter",
-    "version": "0.4.9",
+    "version": "0.4.91",
     "description": "BPSR Meter",
     "author": "Denoder",
     "type": "module",
     "main": "out/main/index.js",
     "engines": {
-        "node": "^22.20.0"
+        "node": "^22.21.1"
     },
     "scripts": {
         "dev": "electron-vite dev",
@@ -76,8 +76,7 @@
         "asar": true,
         "asarUnpack": [
             "**/*.node",
-            "**/*.dll",
-            "**/*.sys"
+            "node_modules/cap/**"
         ],
         "compression": "maximum",
         "publish": {
@@ -94,20 +93,6 @@
             "!**/*.d.ts",
             "!**/README.md",
             "!**/LICENSE"
-        ],
-        "extraResources": [
-            {
-                "from": "node_modules/cap/",
-                "to": "cap/",
-                "filter": [
-                    "**/*.node",
-                    "**/*.dll",
-                    "**/*.sys",
-                    "!**/build/",
-                    "!**/deps/",
-                    "!**/test/"
-                ]
-            }
         ],
         "win": {
             "icon": "icon.ico",
