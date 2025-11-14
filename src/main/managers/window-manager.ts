@@ -1,17 +1,8 @@
-import {
-    BrowserWindow,
-    type BrowserWindowConstructorOptions,
-    screen,
-} from "electron";
+import { BrowserWindow, type BrowserWindowConstructorOptions, screen } from "electron";
 import path from "path";
 import fs from "fs";
 import { is } from "@electron-toolkit/utils";
-import {
-    WINDOW_CONFIGS,
-    WindowType,
-    WindowSize,
-    WindowPosition,
-} from "../constants";
+import { WINDOW_CONFIGS, WindowType, WindowSize, WindowPosition } from "../constants";
 import { SettingsManager } from "./settings-manager";
 import { Logger } from "../logger";
 import type { GlobalSettings } from "../../types";
@@ -235,6 +226,22 @@ export class WindowManager {
         if (window && !window.isDestroyed()) {
             if (window.isVisible()) {
                 window.close();
+            } else {
+                window.show();
+                window.focus();
+            }
+        } else {
+            this.createOrFocusWindow(windowType).catch((err) =>
+                this.#logger.error(`Error opening ${windowType} window`, err),
+            );
+        }
+    }
+
+    toggleMinimizeWindow(windowType: WindowType): void {
+        const window = this.windows[windowType];
+        if (window && !window.isDestroyed()) {
+            if (window.isVisible()) {
+                window.minimize();
             } else {
                 window.show();
                 window.focus();

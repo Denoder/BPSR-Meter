@@ -66,6 +66,8 @@ export default function SettingsApp(): React.JSX.Element {
         useState<string>("CommandOrControl+H");
     const [dataResetKeybind, setDataResetKeybind] =
         useState<string>("CommandOrControl+R");
+    const [minimizeKeybind, setMinimizeKeybind] = 
+        useState<string>("CommandOrControl+B")
     const [isRecordingKeybind, setIsRecordingKeybind] = useState<string | null>(
         null,
     );
@@ -230,6 +232,14 @@ export default function SettingsApp(): React.JSX.Element {
         );
         if (savedHistoryKeybind) {
             setHistoryKeybind(savedHistoryKeybind);
+        }
+
+        const savedMinimizeKeybind = storage.getItem(
+            "minimizeKeybind",
+            "CommandOrControl+B",
+        );
+        if (savedMinimizeKeybind) {
+            setMinimizeKeybind(savedMinimizeKeybind);
         }
 
         fetchSettings();
@@ -458,6 +468,11 @@ export default function SettingsApp(): React.JSX.Element {
                     setHistoryKeybind(keybind);
                     storage.setItem("historyKeybind", keybind);
                     electron.updateGlobalSettings({ historyKeybind: keybind });
+                    break;
+                case "minimize":
+                    setMinimizeKeybind(keybind);
+                    storage.setItem("minimizeKeybind", keybind);
+                    electron.updateGlobalSettings({ minimizeKeybind: keybind });
                     break;
             }
 
@@ -720,6 +735,23 @@ export default function SettingsApp(): React.JSX.Element {
                         type="dataReset"
                         isRecording={isRecordingKeybind === "dataReset"}
                         onFocus={() => handleKeybindRecord("dataReset")}
+                        onKeyDown={handleKeybindKeyDown}
+                        onBlur={handleKeybindBlur}
+                        pressKeysPlaceholder={t(
+                            "ui.settings.placeholders.pressKeys",
+                            "Press keys...",
+                        )}
+                    />
+
+                    <KeybindInput
+                        label={t(
+                            "ui.settings.labels.minimizeKeybind",
+                            "Show/Hide Meter Keybind",
+                        )}
+                        value={minimizeKeybind}
+                        type="minimize"
+                        isRecording={isRecordingKeybind === "minimize"}
+                        onFocus={() => handleKeybindRecord("minimize")}
                         onKeyDown={handleKeybindKeyDown}
                         onBlur={handleKeybindBlur}
                         pressKeysPlaceholder={t(

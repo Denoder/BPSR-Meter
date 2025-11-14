@@ -46,6 +46,7 @@ export const DEFAULT_KEYBINDS = {
     device: "CommandOrControl+D",
     history: "CommandOrControl+H",
     dataReset: "CommandOrControl+R",
+    minimize: "CommandOrControl+B",
 } as const;
 
 export const keybindSettings = [
@@ -56,6 +57,7 @@ export const keybindSettings = [
     "deviceKeybind",
     "historyKeybind",
     "dataResetKeybind",
+    "minimizeKeybind",
 ];
 
 export type WindowType =
@@ -79,6 +81,7 @@ export const globalSettings: GlobalSettings = {
     autoClearOnTimeout: false,
     autoClearTimeoutSeconds: 20,
     onlyRecordEliteDummy: false,
+    enableFightLog: false,
     enableHistorySave: false,
     enableBPTimerSubmission: true,
     performanceMode: false,
@@ -92,6 +95,7 @@ export const globalSettings: GlobalSettings = {
     settingsKeybind: "CommandOrControl+S",
     deviceKeybind: "CommandOrControl+D",
     historyKeybind: "CommandOrControl+H",
+    minimizeKeybind: "CommandOrControl+B",
     lastPausedAt: null,
     lastResumedAt: null,
     manualGroup: {

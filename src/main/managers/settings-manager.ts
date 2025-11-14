@@ -61,7 +61,7 @@ export class SettingsManager {
                     WindowPosition
                 >;
             }
-        } catch {}
+        } catch { }
         return defaultPositions;
     }
 

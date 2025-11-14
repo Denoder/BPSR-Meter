@@ -81,6 +81,7 @@ export interface GlobalSettings {
     selectedPlayers: string[];
     filterMode: "all" | "group";
     isPaused: boolean;
+    enableFightLog?: boolean;
     enableHistorySave?: boolean;
     saveOnLineSwitch?: boolean;
     autoClearOnTimeout?: boolean;
@@ -125,6 +126,7 @@ export interface GlobalSettings {
     deviceKeybind?: string;
     historyKeybind?: string;
     dataResetKeybind?: string;
+    minimizeKeybind?: string;
     clickthroughEnabled?: boolean;
 }
 
