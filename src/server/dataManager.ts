@@ -549,6 +549,7 @@ export class UserDataManager {
     logDirExist: Set<string>;
     enemyCache: EnemyCache;
     localPlayerUid: number | null;
+    localPlayerAccountId: string | null;
     localPlayerPosition: PlayerPosition | null;
     lastLogTime?: number;
     sceneData: Map<string, SceneInfo>;
@@ -583,12 +584,19 @@ export class UserDataManager {
         };
         this.sceneData = new Map();
         this.localPlayerUid = null;
+        this.localPlayerAccountId = null;
         this.localPlayerPosition = null;
     }
 
     setLocalPlayerUid(uid: number): void {
         if (this.localPlayerUid !== uid) {
             this.localPlayerUid = uid;
+        }
+    }
+
+    setLocalPlayerAccountId(accountId: string): void {
+        if (this.localPlayerAccountId !== accountId) {
+            this.localPlayerAccountId = accountId;
         }
     }
 
