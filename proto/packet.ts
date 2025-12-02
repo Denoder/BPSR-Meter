@@ -383,6 +383,10 @@ class PacketProcessor {
                 this.userDataManager.setName(playerUid, charBase.name);
             }
 
+            if (charBase.accountId) {
+                this.userDataManager.setLocalPlayerAccountId(charBase.accountId);
+            }
+
             if (charBase.fightPoint) this.userDataManager.setFightPoint(playerUid, charBase.fightPoint);
 
             if (!vData.professionList) return;
@@ -644,6 +648,8 @@ class PacketProcessor {
             const pos_y = position?.y;
             const pos_z = position?.z;
             const line = this.userDataManager.getCurrentLineId();
+            const account_id = this.userDataManager.localPlayerAccountId ?? undefined;
+            const uid = this.userDataManager.localPlayerUid ?? undefined;
 
             this.bpTimerClient
                 .reportHP({
@@ -653,6 +659,8 @@ class PacketProcessor {
                     pos_x: pos_x,
                     pos_y: pos_y,
                     pos_z: pos_z,
+                    account_id: account_id,
+                    uid: uid,
                 })
                 .catch((err) => {
                     this.logger.debug(
